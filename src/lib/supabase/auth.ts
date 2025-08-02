@@ -1,5 +1,8 @@
-import { supabase } from './client'
+// src/lib/supabase/auth.ts - AGGIORNATO
+import { createClient } from './client'
 import { DatiRegistrazioneFisioterapista, DatiRegistrazionePaziente } from '@/types/database'
+
+const supabase = createClient()
 
 export class AuthService {
   // Registrazione fisioterapista
@@ -92,8 +95,8 @@ export class AuthService {
           data_nascita: dati.data_nascita,
           codice_fiscale: dati.codice_fiscale,
           telefono: dati.telefono,
-          diagnosi: 'Da definire', // Valore temporaneo
-          piano_terapeutico: 'Da definire' // Valore temporaneo
+          diagnosi: '', // Da completare successivamente
+          piano_terapeutico: '' // Da completare successivamente
         })
 
       if (pazienteError) throw pazienteError
@@ -171,10 +174,10 @@ export class AuthService {
       if (error) throw error
 
       // Converte in oggetto chiave-valore per facile accesso
-      const configMap = configurazioni.reduce((acc, config) => {
-        acc[config.nome_configurazione] = config.valore_configurazione
-        return acc
-      }, {} as Record<string, Record<string, unknown>>)
+      const configMap: { [key: string]: unknown } = {}
+      configurazioni.forEach(config => {
+        configMap[config.nome_configurazione] = config.valore_configurazione
+      })
 
       return { success: true, configurazioni: configMap }
     } catch (error) {

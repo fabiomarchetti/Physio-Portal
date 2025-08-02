@@ -1,5 +1,6 @@
 'use client'
 
+import React from 'react'
 import { AuthWrapper } from '@/components/shared/AuthWrapper'
 
 interface ClientProviderProps {

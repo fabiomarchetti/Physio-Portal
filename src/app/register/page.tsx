@@ -1,3 +1,4 @@
+// src/app/register/page.tsx - VERSIONE CORRETTA
 'use client'
 
 import { useState } from 'react'
@@ -7,7 +8,13 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+// import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group' // Rimosso temporaneamente
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Textarea } from '@/components/ui/textarea'
 import { AuthService } from '@/lib/supabase/auth'
+import { toast } from 'sonner'
+import { Eye, EyeOff, AlertCircle } from 'lucide-react'
 
 type TipoUtente = 'fisioterapista' | 'paziente'
 
@@ -33,69 +40,117 @@ export default function RegisterPage() {
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [mostraPassword, setMostraPassword] = useState(false)
+  const [mostraConfirmPassword, setMostraConfirmPassword] = useState(false)
   const router = useRouter()
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    })
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }))
+    // Pulisci errore quando l'utente inizia a correggere
+    if (error) setError('')
+  }
+
+  const validateForm = () => {
+    // Validazione campi comuni
+    if (!formData.nome.trim()) return 'Il nome è obbligatorio'
+    if (!formData.cognome.trim()) return 'Il cognome è obbligatorio'
+    if (!formData.email.trim()) return 'L\'email è obbligatoria'
+    if (!formData.password) return 'La password è obbligatoria'
+    if (formData.password.length < 6) return 'La password deve essere di almeno 6 caratteri'
+    if (formData.password !== formData.confirmPassword) return 'Le password non coincidono'
+
+    // Validazione email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(formData.email)) return 'Formato email non valido'
+
+    if (tipoUtente === 'fisioterapista') {
+      if (!formData.numero_albo.trim()) return 'Il numero albo è obbligatorio'
+      if (!formData.specializzazione.trim()) return 'La specializzazione è obbligatoria'
+      if (!formData.nome_clinica.trim()) return 'Il nome della clinica è obbligatorio'
+      if (!formData.indirizzo_clinica.trim()) return 'L\'indirizzo della clinica è obbligatorio'
+    } else {
+      if (!formData.data_nascita) return 'La data di nascita è obbligatoria'
+      if (!formData.codice_fisioterapista.trim()) return 'Il codice fisioterapista è obbligatorio'
+      
+      // Validazione codice fiscale (opzionale ma se inserito deve essere valido)
+      if (formData.codice_fiscale && formData.codice_fiscale.length !== 16) {
+        return 'Il codice fiscale deve essere di 16 caratteri'
+      }
+    }
+
+    return null
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Validazione form
+    const validationError = validateForm()
+    if (validationError) {
+      setError(validationError)
+      return
+    }
+
     setLoading(true)
     setError('')
 
-    // Validazione password
-    if (formData.password !== formData.confirmPassword) {
-      setError('Le password non coincidono')
-      setLoading(false)
-      return
-    }
-
-    if (formData.password.length < 6) {
-      setError('La password deve essere di almeno 6 caratteri')
-      setLoading(false)
-      return
-    }
-
     try {
       let result
-      
+
       if (tipoUtente === 'fisioterapista') {
         result = await AuthService.registraFisioterapista({
-          nome: formData.nome,
-          cognome: formData.cognome,
-          email: formData.email,
+          nome: formData.nome.trim(),
+          cognome: formData.cognome.trim(),
+          email: formData.email.trim().toLowerCase(),
           password: formData.password,
-          numero_albo: formData.numero_albo,
-          specializzazione: formData.specializzazione,
-          nome_clinica: formData.nome_clinica,
-          indirizzo_clinica: formData.indirizzo_clinica,
-          telefono: formData.telefono,
-          email_clinica: formData.email_clinica
+          numero_albo: formData.numero_albo.trim().toUpperCase(),
+          specializzazione: formData.specializzazione.trim(),
+          nome_clinica: formData.nome_clinica.trim(),
+          indirizzo_clinica: formData.indirizzo_clinica.trim(),
+          telefono: formData.telefono.trim() || undefined,
+          email_clinica: formData.email_clinica.trim() || undefined
         })
       } else {
         result = await AuthService.registraPaziente({
-          nome: formData.nome,
-          cognome: formData.cognome,
-          email: formData.email,
+          nome: formData.nome.trim(),
+          cognome: formData.cognome.trim(),
+          email: formData.email.trim().toLowerCase(),
           password: formData.password,
           data_nascita: formData.data_nascita,
-          codice_fiscale: formData.codice_fiscale,
-          telefono: formData.telefono,
-          codice_fisioterapista: formData.codice_fisioterapista
+          codice_fiscale: formData.codice_fiscale.trim().toUpperCase() || undefined,
+          telefono: formData.telefono.trim() || undefined,
+          codice_fisioterapista: formData.codice_fisioterapista.trim().toUpperCase()
         })
       }
 
       if (result.success) {
-        router.push('/login?message=Registrazione completata con successo')
+        toast.success('Registrazione completata! Controlla la tua email per verificare l\'account.')
+        router.push('/login')
       } else {
-        setError('Errore durante la registrazione')
+        // Gestione errori semplificata - completamente type-safe
+        console.error('Registration error:', result.error)
+        
+        // Converti l'errore in stringa per i controlli
+        const errorStr = JSON.stringify(result.error)
+        
+        // Controlli sui messaggi di errore comuni
+        if (errorStr.includes('email') && (errorStr.includes('duplicate') || errorStr.includes('unique'))) {
+          setError('Questa email è già registrata')
+        } else if (errorStr.includes('albo') && (errorStr.includes('duplicate') || errorStr.includes('unique'))) {
+          setError('Questo numero albo è già registrato')
+        } else if (errorStr.includes('foreign') || errorStr.includes('not found') || errorStr.includes('invalid')) {
+          setError('Codice fisioterapista non valido')
+        } else {
+          setError('Errore durante la registrazione. Riprova.')
+        }
       }
     } catch (err) {
-      setError('Errore durante la registrazione')
+      console.error('Registration error:', err)
+      setError('Errore di connessione. Riprova più tardi.')
     } finally {
       setLoading(false)
     }
@@ -103,7 +158,7 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <Card className="w-full max-w-md">
+      <Card className="w-full max-w-lg">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold text-center">
             Registrati a Physio Portal
@@ -116,41 +171,27 @@ export default function RegisterPage() {
           {/* Selezione tipo utente */}
           <div className="mb-6">
             <Label className="text-base font-medium">Tipo di account</Label>
-            <div className="mt-2 space-y-2">
-              <div className="flex items-center">
-                <input
-                  id="paziente"
-                  name="tipoUtente"
-                  type="radio"
-                  checked={tipoUtente === 'paziente'}
-                  onChange={() => setTipoUtente('paziente')}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                />
-                <label htmlFor="paziente" className="ml-3 block text-sm font-medium text-gray-700">
-                  Paziente
-                </label>
+            <RadioGroup 
+              value={tipoUtente} 
+              onValueChange={(value: TipoUtente) => setTipoUtente(value)}
+              className="mt-2"
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="paziente" id="paziente" />
+                <Label htmlFor="paziente">Paziente</Label>
               </div>
-              <div className="flex items-center">
-                <input
-                  id="fisioterapista"
-                  name="tipoUtente"
-                  type="radio"
-                  checked={tipoUtente === 'fisioterapista'}
-                  onChange={() => setTipoUtente('fisioterapista')}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                />
-                <label htmlFor="fisioterapista" className="ml-3 block text-sm font-medium text-gray-700">
-                  Fisioterapista
-                </label>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="fisioterapista" id="fisioterapista" />
+                <Label htmlFor="fisioterapista">Fisioterapista</Label>
               </div>
-            </div>
+            </RadioGroup>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Campi comuni */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="nome">Nome</Label>
+                <Label htmlFor="nome">Nome *</Label>
                 <Input
                   id="nome"
                   name="nome"
@@ -162,7 +203,7 @@ export default function RegisterPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="cognome">Cognome</Label>
+                <Label htmlFor="cognome">Cognome *</Label>
                 <Input
                   id="cognome"
                   name="cognome"
@@ -176,7 +217,7 @@ export default function RegisterPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">Email *</Label>
               <Input
                 id="email"
                 name="email"
@@ -189,41 +230,67 @@ export default function RegisterPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                placeholder="Minimo 6 caratteri"
-                value={formData.password}
-                onChange={handleInputChange}
-                required
-              />
+              <Label htmlFor="password">Password *</Label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  name="password"
+                  type={mostraPassword ? "text" : "password"}
+                  placeholder="Minimo 6 caratteri"
+                  value={formData.password}
+                  onChange={handleInputChange}
+                  required
+                />
+                <button
+                  type="button"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  onClick={() => setMostraPassword(!mostraPassword)}
+                >
+                  {mostraPassword ? (
+                    <EyeOff className="h-4 w-4 text-gray-400" />
+                  ) : (
+                    <Eye className="h-4 w-4 text-gray-400" />
+                  )}
+                </button>
+              </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Conferma Password</Label>
-              <Input
-                id="confirmPassword"
-                name="confirmPassword"
-                type="password"
-                placeholder="Ripeti la password"
-                value={formData.confirmPassword}
-                onChange={handleInputChange}
-                required
-              />
+              <Label htmlFor="confirmPassword">Conferma Password *</Label>
+              <div className="relative">
+                <Input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type={mostraConfirmPassword ? "text" : "password"}
+                  placeholder="Ripeti la password"
+                  value={formData.confirmPassword}
+                  onChange={handleInputChange}
+                  required
+                />
+                <button
+                  type="button"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  onClick={() => setMostraConfirmPassword(!mostraConfirmPassword)}
+                >
+                  {mostraConfirmPassword ? (
+                    <EyeOff className="h-4 w-4 text-gray-400" />
+                  ) : (
+                    <Eye className="h-4 w-4 text-gray-400" />
+                  )}
+                </button>
+              </div>
             </div>
 
             {/* Campi specifici per fisioterapista */}
             {tipoUtente === 'fisioterapista' && (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="numero_albo">Numero Albo</Label>
+                  <Label htmlFor="numero_albo">Numero Albo *</Label>
                   <Input
                     id="numero_albo"
                     name="numero_albo"
                     type="text"
-                    placeholder="Es. FT12345"
+                    placeholder="Es. RM12345"
                     value={formData.numero_albo}
                     onChange={handleInputChange}
                     required
@@ -231,12 +298,12 @@ export default function RegisterPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="specializzazione">Specializzazione</Label>
+                  <Label htmlFor="specializzazione">Specializzazione *</Label>
                   <Input
                     id="specializzazione"
                     name="specializzazione"
                     type="text"
-                    placeholder="Es. Ortopedica, Neurologica"
+                    placeholder="Es. Fisioterapia Ortopedica"
                     value={formData.specializzazione}
                     onChange={handleInputChange}
                     required
@@ -244,12 +311,12 @@ export default function RegisterPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="nome_clinica">Nome Clinica</Label>
+                  <Label htmlFor="nome_clinica">Nome Clinica/Studio *</Label>
                   <Input
                     id="nome_clinica"
                     name="nome_clinica"
                     type="text"
-                    placeholder="Centro Fisioterapico"
+                    placeholder="Centro Fisioterapico Rossi"
                     value={formData.nome_clinica}
                     onChange={handleInputChange}
                     required
@@ -257,15 +324,15 @@ export default function RegisterPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="indirizzo_clinica">Indirizzo Clinica</Label>
-                  <Input
+                  <Label htmlFor="indirizzo_clinica">Indirizzo Clinica *</Label>
+                  <Textarea
                     id="indirizzo_clinica"
                     name="indirizzo_clinica"
-                    type="text"
-                    placeholder="Via Roma 123, Milano"
+                    placeholder="Via Roma 123, 00100 Roma"
                     value={formData.indirizzo_clinica}
                     onChange={handleInputChange}
                     required
+                    rows={2}
                   />
                 </div>
 
@@ -278,7 +345,6 @@ export default function RegisterPage() {
                     placeholder="+39 123 456 7890"
                     value={formData.telefono}
                     onChange={handleInputChange}
-                    required
                   />
                 </div>
 
@@ -288,10 +354,9 @@ export default function RegisterPage() {
                     id="email_clinica"
                     name="email_clinica"
                     type="email"
-                    placeholder="info@clinica.com"
+                    placeholder="info@clinica.it"
                     value={formData.email_clinica}
                     onChange={handleInputChange}
-                    required
                   />
                 </div>
               </>
@@ -301,7 +366,7 @@ export default function RegisterPage() {
             {tipoUtente === 'paziente' && (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="data_nascita">Data di Nascita</Label>
+                  <Label htmlFor="data_nascita">Data di Nascita *</Label>
                   <Input
                     id="data_nascita"
                     name="data_nascita"
@@ -313,6 +378,22 @@ export default function RegisterPage() {
                 </div>
 
                 <div className="space-y-2">
+                  <Label htmlFor="codice_fisioterapista">Codice Fisioterapista *</Label>
+                  <Input
+                    id="codice_fisioterapista"
+                    name="codice_fisioterapista"
+                    type="text"
+                    placeholder="Numero albo del tuo fisioterapista (es. RM12345)"
+                    value={formData.codice_fisioterapista}
+                    onChange={handleInputChange}
+                    required
+                  />
+                  <p className="text-xs text-gray-500">
+                    Chiedi questo codice al tuo fisioterapista
+                  </p>
+                </div>
+
+                <div className="space-y-2">
                   <Label htmlFor="codice_fiscale">Codice Fiscale</Label>
                   <Input
                     id="codice_fiscale"
@@ -321,7 +402,7 @@ export default function RegisterPage() {
                     placeholder="RSSMRA80A01H501Z"
                     value={formData.codice_fiscale}
                     onChange={handleInputChange}
-                    required
+                    maxLength={16}
                   />
                 </div>
 
@@ -334,29 +415,17 @@ export default function RegisterPage() {
                     placeholder="+39 123 456 7890"
                     value={formData.telefono}
                     onChange={handleInputChange}
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="codice_fisioterapista">Codice Fisioterapista</Label>
-                  <Input
-                    id="codice_fisioterapista"
-                    name="codice_fisioterapista"
-                    type="text"
-                    placeholder="Numero albo del tuo fisioterapista"
-                    value={formData.codice_fisioterapista}
-                    onChange={handleInputChange}
-                    required
                   />
                 </div>
               </>
             )}
 
+            {/* Visualizzazione errori */}
             {error && (
-              <div className="text-red-600 text-sm text-center">
-                {error}
-              </div>
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
             )}
 
             <Button 

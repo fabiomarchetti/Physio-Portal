@@ -39,8 +39,10 @@ export function AuthWrapper({ children }: AuthWrapperProps) {
         const configResult = await AuthService.caricaConfigurazioni()
         if (configResult.success) {
           setConfigurazioni(configResult.configurazioni)
-          // Salva in localStorage per accesso rapido
-          localStorage.setItem('physio_config', JSON.stringify(configResult.configurazioni))
+          // Salva in localStorage per accesso rapido (solo lato client)
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('physio_config', JSON.stringify(configResult.configurazioni))
+          }
         }
       } else {
         // Non autenticato
@@ -69,7 +71,7 @@ export function AuthWrapper({ children }: AuthWrapperProps) {
   return (
     <div className="min-h-screen">
       <Navbar utente={utente} profilo={profilo} />
-      <main className={pathname === '/' ? 'bg-gradient-to-br from-blue-50 to-indigo-100' : 'bg-gray-50'}>
+      <main className="bg-gradient-to-br from-blue-50 to-indigo-100">
         {children}
       </main>
     </div>
