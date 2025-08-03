@@ -1,20 +1,26 @@
-// src/components/computer-vision/PoseDetection.tsx - VERSIONE OTTIMIZZATA
+// src/components/computer-vision/PoseDetection.tsx - VERSIONE COMBINATA
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Progress } from '@/components/ui/progress'
 import { 
   Activity, 
   Play, 
   Pause, 
+  Square,
   RotateCcw,
   AlertCircle,
   Zap,
   Target,
-  Settings
+  Database,
+  BarChart
 } from 'lucide-react'
+import { useSessionRecording } from '@/hooks/useSessionRecording'
+import { toast } from 'sonner'
 
 // Types per MediaPipe
 interface PoseLandmark {
@@ -35,18 +41,24 @@ interface PoseDetectionProps {
   onPoseDetected?: (result: PoseDetectionResult) => void
   onError?: (error: string) => void
   isActive?: boolean
+  // Props per database
+  enableRecording?: boolean
+  pazienteId?: string
+  tipoEsercizio?: string
+  obiettivi?: string
+  onSessionComplete?: (sessionId: string) => void
 }
 
 // Performance settings
 const PERFORMANCE_SETTINGS = {
   TARGET_FPS: 30,
   MIN_CONFIDENCE: 0.5,
-  DRAWING_THROTTLE: 3, // Disegna ogni N frame per performance
-  STATS_UPDATE_INTERVAL: 1000, // Update stats ogni secondo
-  CANVAS_SCALE: 1, // Scala canvas per performance
+  DRAWING_THROTTLE: 3,
+  STATS_UPDATE_INTERVAL: 1000,
+  CANVAS_SCALE: 1,
 }
 
-// MediaPipe Pose landmark indices (key points only for performance)
+// MediaPipe Pose landmark indices
 const POSE_LANDMARKS = {
   NOSE: 0,
   LEFT_SHOULDER: 11,
@@ -67,9 +79,14 @@ export function PoseDetection({
   videoElement, 
   onPoseDetected, 
   onError,
-  isActive = false 
+  isActive = false,
+  enableRecording = false,
+  pazienteId,
+  tipoEsercizio = 'Esercizio generico',
+  obiettivi,
+  onSessionComplete
 }: PoseDetectionProps) {
-  // Refs
+  // Refs per rendering
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const animationFrameRef = useRef<number | undefined>(undefined)
   const poseDetectorRef = useRef<unknown>(null)
@@ -90,8 +107,19 @@ export function PoseDetection({
     droppedFrames: 0
   })
 
+  // Hook per registrazione dati - sempre chiamato per rispettare le regole degli hook
+  const recording = useSessionRecording({
+    pazienteId: pazienteId || '',
+    tipoEsercizio,
+    obiettivi
+  })
+
+  // Usa recording solo se abilitato e pazienteId è presente
+  const shouldUseRecording = enableRecording && pazienteId
+
+
   // Performance configurations
-  const getPerformanceConfig = () => {
+  const getPerformanceConfig = useCallback(() => {
     switch (performanceMode) {
       case 'high':
         return {
@@ -115,7 +143,7 @@ export function PoseDetection({
           CANVAS_SCALE: 0.9
         }
     }
-  }
+  }, [performanceMode])
 
   // Initialize MediaPipe Pose
   const initializePoseDetection = useCallback(async () => {
@@ -154,139 +182,13 @@ export function PoseDetection({
       setError(`Errore MediaPipe: ${errorMessage}`)
       onError?.(errorMessage)
     }
-  }, [onError, performanceMode])
+  }, [onError, getPerformanceConfig])
 
-  // Optimized frame processing
-  const processFrame = useCallback(async () => {
-    if (!videoElement || !poseDetectorRef.current || !canvasRef.current || !isDetecting) {
-      return
-    }
-
-    const now = performance.now()
-    const config = getPerformanceConfig()
-    const frameInterval = 1000 / config.TARGET_FPS
-
-    // Frame rate limiting
-    if (now - lastFrameTimeRef.current < frameInterval) {
-      animationFrameRef.current = requestAnimationFrame(processFrame)
-      return
-    }
-
-    try {
-      const canvas = canvasRef.current
-      const ctx = canvas.getContext('2d')
-      if (!ctx) return
-
-      // Adaptive canvas sizing for performance
-      const targetWidth = Math.floor(videoElement.videoWidth * config.CANVAS_SCALE)
-      const targetHeight = Math.floor(videoElement.videoHeight * config.CANVAS_SCALE)
-
-      if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
-        canvas.width = targetWidth
-        canvas.height = targetHeight
-      }
-
-      // Clear and draw video frame
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
-      ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height)
-
-      // MediaPipe detection
-      const detectionStart = performance.now()
-      let results: unknown
-      
-      try {
-        const detector = poseDetectorRef.current
-        if (detector && typeof detector === 'object' && detector !== null && 'detectForVideo' in detector) {
-          const detectorWithMethod = detector as { detectForVideo: (video: HTMLVideoElement, timestamp: number) => unknown }
-          results = detectorWithMethod.detectForVideo(videoElement, now)
-        } else {
-          return
-        }
-      } catch (err) {
-        console.error('❌ Errore detectForVideo:', err)
-        setStats(prev => ({ ...prev, droppedFrames: prev.droppedFrames + 1 }))
-        animationFrameRef.current = requestAnimationFrame(processFrame)
-        return
-      }
-
-      const detectionTime = performance.now() - detectionStart
-
-      // Process results
-      if (results && 
-          typeof results === 'object' && 
-          results !== null &&
-          'landmarks' in results && 
-          'worldLandmarks' in results) {
-        
-        const resultsObj = results as { 
-          landmarks: PoseLandmark[][], 
-          worldLandmarks: PoseLandmark[][],
-          segmentationMasks?: ImageData[] 
-        }
-        
-        if (resultsObj.landmarks && resultsObj.landmarks.length > 0) {
-          const landmarks = resultsObj.landmarks[0]
-          const worldLandmarks = resultsObj.worldLandmarks[0]
-
-          // Calculate confidence
-          const visibilityScores = landmarks
-            .map((landmark: PoseLandmark) => landmark.visibility || 0)
-            .filter((v: number) => v > 0)
-          const avgConfidence = visibilityScores.length > 0 
-            ? visibilityScores.reduce((a: number, b: number) => a + b, 0) / visibilityScores.length 
-            : 0
-
-          // Throttled drawing for performance
-          drawingCountRef.current++
-          if (drawingCountRef.current % config.DRAWING_THROTTLE === 0) {
-            drawPoseLandmarksOptimized(ctx, landmarks, canvas.width, canvas.height, avgConfidence)
-          }
-
-          // Update stats
-          frameCountRef.current++
-          if (now - lastFrameTimeRef.current >= PERFORMANCE_SETTINGS.STATS_UPDATE_INTERVAL) {
-            const fps = Math.round((frameCountRef.current * 1000) / (now - lastFrameTimeRef.current))
-            setStats(prev => ({
-              fps,
-              detectionTime: Math.round(detectionTime * 10) / 10,
-              totalDetections: prev.totalDetections + 1,
-              averageConfidence: Math.round(avgConfidence * 1000) / 10,
-              droppedFrames: prev.droppedFrames
-            }))
-            frameCountRef.current = 0
-            lastFrameTimeRef.current = now
-          }
-
-          // Notify parent component (throttled)
-          if (drawingCountRef.current % 3 === 0) { // Every 3rd frame
-            onPoseDetected?.({
-              landmarks,
-              worldLandmarks,
-              segmentationMasks: resultsObj.segmentationMasks
-            })
-          }
-        }
-      }
-
-      // Schedule next frame
-      if (isDetecting) {
-        animationFrameRef.current = requestAnimationFrame(processFrame)
-      }
-
-    } catch (err) {
-      console.error('Errore processing frame:', err)
-      setStats(prev => ({ ...prev, droppedFrames: prev.droppedFrames + 1 }))
-      if (isDetecting) {
-        animationFrameRef.current = requestAnimationFrame(processFrame)
-      }
-    }
-  }, [videoElement, isDetecting, onPoseDetected, performanceMode])
-
-  // Optimized landmark drawing
-  const drawPoseLandmarksOptimized = (
-    ctx: CanvasRenderingContext2D, 
-    landmarks: PoseLandmark[], 
-    width: number, 
+  // Optimized landmark drawing (dalla versione ottimizzata)
+  const drawPoseLandmarksOptimized = useCallback((
+    ctx: CanvasRenderingContext2D,
+    landmarks: PoseLandmark[],
+    width: number,
     height: number,
     confidence: number
   ) => {
@@ -330,8 +232,8 @@ export function PoseDetection({
       const start = landmarks[startIdx]
       const end = landmarks[endIdx]
       
-      if (start && end && 
-          (start.visibility || 0) > config.MIN_CONFIDENCE && 
+      if (start && end &&
+          (start.visibility || 0) > config.MIN_CONFIDENCE &&
           (end.visibility || 0) > config.MIN_CONFIDENCE) {
         
         const gradient = ctx.createLinearGradient(
@@ -350,21 +252,7 @@ export function PoseDetection({
     })
 
     // Draw key points only
-    const keyPoints = [
-      POSE_LANDMARKS.NOSE,
-      POSE_LANDMARKS.LEFT_SHOULDER,
-      POSE_LANDMARKS.RIGHT_SHOULDER,
-      POSE_LANDMARKS.LEFT_ELBOW,
-      POSE_LANDMARKS.RIGHT_ELBOW,
-      POSE_LANDMARKS.LEFT_WRIST,
-      POSE_LANDMARKS.RIGHT_WRIST,
-      POSE_LANDMARKS.LEFT_HIP,
-      POSE_LANDMARKS.RIGHT_HIP,
-      POSE_LANDMARKS.LEFT_KNEE,
-      POSE_LANDMARKS.RIGHT_KNEE,
-      POSE_LANDMARKS.LEFT_ANKLE,
-      POSE_LANDMARKS.RIGHT_ANKLE
-    ]
+    const keyPoints = Object.values(POSE_LANDMARKS)
 
     keyPoints.forEach((index) => {
       const landmark = landmarks[index]
@@ -390,7 +278,145 @@ export function PoseDetection({
         ctx.shadowBlur = 0
       }
     })
-  }
+  }, [getPerformanceConfig])
+
+  // Optimized frame processing con recording
+  const processFrame = useCallback(async () => {
+    if (!videoElement || !poseDetectorRef.current || !canvasRef.current || !isDetecting) {
+      return
+    }
+
+    const now = performance.now()
+    const config = getPerformanceConfig()
+    const frameInterval = 1000 / config.TARGET_FPS
+
+    // Frame rate limiting
+    if (now - lastFrameTimeRef.current < frameInterval) {
+      animationFrameRef.current = requestAnimationFrame(processFrame)
+      return
+    }
+
+    try {
+      const canvas = canvasRef.current
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return
+
+      // Adaptive canvas sizing
+      const targetWidth = Math.floor(videoElement.videoWidth * config.CANVAS_SCALE)
+      const targetHeight = Math.floor(videoElement.videoHeight * config.CANVAS_SCALE)
+
+      if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
+        canvas.width = targetWidth
+        canvas.height = targetHeight
+      }
+
+      // Clear and draw video frame
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height)
+
+      // MediaPipe detection
+      const detectionStart = performance.now()
+      let results: unknown
+      
+      try {
+        const detector = poseDetectorRef.current
+        if (detector && typeof detector === 'object' && detector !== null && 'detectForVideo' in detector) {
+          const detectorWithMethod = detector as { detectForVideo: (video: HTMLVideoElement, timestamp: number) => unknown }
+          results = detectorWithMethod.detectForVideo(videoElement, now)
+        } else {
+          return
+        }
+      } catch (err) {
+        console.error('❌ Errore detectForVideo:', err)
+        setStats(prev => ({ ...prev, droppedFrames: prev.droppedFrames + 1 }))
+        animationFrameRef.current = requestAnimationFrame(processFrame)
+        return
+      }
+
+      const detectionTime = performance.now() - detectionStart
+
+      // Process results
+      if (results &&
+          typeof results === 'object' &&
+          results !== null &&
+          'landmarks' in results &&
+          'worldLandmarks' in results) {
+        
+        const resultsObj = results as {
+          landmarks: PoseLandmark[][],
+          worldLandmarks: PoseLandmark[][],
+          segmentationMasks?: ImageData[]
+        }
+        
+        if (resultsObj.landmarks && resultsObj.landmarks.length > 0) {
+          const landmarks = resultsObj.landmarks[0]
+          const worldLandmarks = resultsObj.worldLandmarks[0]
+
+          // Calculate confidence
+          const visibilityScores = landmarks
+            .map((landmark: PoseLandmark) => landmark.visibility || 0)
+            .filter((v: number) => v > 0)
+          const avgConfidence = visibilityScores.length > 0
+            ? visibilityScores.reduce((a: number, b: number) => a + b, 0) / visibilityScores.length
+            : 0
+
+          // Throttled drawing
+          drawingCountRef.current++
+          if (drawingCountRef.current % config.DRAWING_THROTTLE === 0) {
+            drawPoseLandmarksOptimized(ctx, landmarks, canvas.width, canvas.height, avgConfidence)
+          }
+
+          // Update stats
+          frameCountRef.current++
+          if (now - lastFrameTimeRef.current >= PERFORMANCE_SETTINGS.STATS_UPDATE_INTERVAL) {
+            const fps = Math.round((frameCountRef.current * 1000) / (now - lastFrameTimeRef.current))
+            setStats(prev => ({
+              fps,
+              detectionTime: Math.round(detectionTime * 10) / 10,
+              totalDetections: prev.totalDetections + 1,
+              averageConfidence: Math.round(avgConfidence * 1000) / 10,
+              droppedFrames: prev.droppedFrames
+            }))
+            frameCountRef.current = 0
+            lastFrameTimeRef.current = now
+          }
+
+          // Notify parent component
+          const detectionResult = {
+            landmarks,
+            worldLandmarks,
+            segmentationMasks: resultsObj.segmentationMasks
+          }
+
+          if (drawingCountRef.current % 3 === 0) {
+            onPoseDetected?.(detectionResult)
+          }
+
+          // Process for recording if enabled
+          if (shouldUseRecording && recording && recording.isRecording && !recording.isPaused) {
+            recording.processFrame({
+              poseLandmarks: landmarks,
+              worldLandmarks: worldLandmarks,
+              confidence: avgConfidence
+            })
+          }
+        }
+      }
+
+      // Schedule next frame
+      if (isDetecting) {
+        animationFrameRef.current = requestAnimationFrame(processFrame)
+      }
+
+    } catch (err) {
+      console.error('Errore processing frame:', err)
+      setStats(prev => ({ ...prev, droppedFrames: prev.droppedFrames + 1 }))
+      if (isDetecting) {
+        animationFrameRef.current = requestAnimationFrame(processFrame)
+      }
+    }
+  }, [videoElement, isDetecting, onPoseDetected, getPerformanceConfig, drawPoseLandmarksOptimized, shouldUseRecording, recording])
+
 
   // Toggle detection
   const toggleDetection = useCallback(() => {
@@ -406,6 +432,21 @@ export function PoseDetection({
       setIsDetecting(true)
     }
   }, [isInitialized, isDetecting])
+
+  // Handle recording start
+  const handleStartRecording = useCallback(async () => {
+    if (!shouldUseRecording || !recording) return
+    await recording.startRecording()
+  }, [shouldUseRecording, recording])
+
+  // Handle recording stop
+  const handleStopRecording = useCallback(async () => {
+    if (!shouldUseRecording || !recording) return
+    await recording.stopRecording()
+    if (recording.sessionId && onSessionComplete) {
+      onSessionComplete(recording.sessionId)
+    }
+  }, [shouldUseRecording, recording, onSessionComplete])
 
   // Reset stats
   const resetStats = useCallback(() => {
@@ -428,7 +469,6 @@ export function PoseDetection({
     }
   }, [videoElement, isInitialized, initializePoseDetection])
 
-  // Auto-start quando diventa attivo
   useEffect(() => {
     if (isActive && isInitialized && !isDetecting) {
       setIsDetecting(true)
@@ -441,7 +481,6 @@ export function PoseDetection({
     }
   }, [isActive, isInitialized, isDetecting])
 
-  // Avvia processFrame quando isDetecting diventa true
   useEffect(() => {
     if (isDetecting && videoElement && poseDetectorRef.current && canvasRef.current) {
       lastFrameTimeRef.current = performance.now()
@@ -449,7 +488,6 @@ export function PoseDetection({
     }
   }, [isDetecting, videoElement, processFrame])
 
-  // Cleanup
   useEffect(() => {
     return () => {
       if (animationFrameRef.current !== undefined) {
@@ -457,6 +495,13 @@ export function PoseDetection({
       }
     }
   }, [])
+
+  // Show recording error
+  useEffect(() => {
+    if (shouldUseRecording && recording?.error) {
+      toast.error(recording.error)
+    }
+  }, [shouldUseRecording, recording?.error])
 
   return (
     <Card>
@@ -473,11 +518,20 @@ export function PoseDetection({
               value={performanceMode}
               onChange={(e) => setPerformanceMode(e.target.value as 'high' | 'balanced' | 'fast')}
               className="text-xs px-2 py-1 border rounded"
+              disabled={recording?.isRecording}
             >
               <option value="high">High Quality</option>
               <option value="balanced">Balanced</option>
               <option value="fast">Fast</option>
             </select>
+
+            {/* Recording Badge */}
+            {shouldUseRecording && recording?.isRecording && (
+              <Badge variant={recording.isPaused ? "secondary" : "destructive"}>
+                {recording.isPaused ? 'In Pausa' : 'Registrando'}
+                <Database className="h-3 w-3 ml-1" />
+              </Badge>
+            )}
 
             {/* Status Badge */}
             <div className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -520,38 +574,101 @@ export function PoseDetection({
               {stats.fps} FPS | {stats.detectionTime}ms | {stats.averageConfidence}%
             </div>
           )}
+
+          {/* Recording overlay */}
+          {shouldUseRecording && recording?.isRecording && (
+            <div className="absolute top-2 left-2 bg-red-600/80 text-white text-xs px-2 py-1 rounded flex items-center gap-2">
+              <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+              {recording.formattedDuration} | {recording.frameCount} frames
+            </div>
+          )}
         </div>
 
-        {/* Enhanced Stats */}
+        {/* Enhanced Stats + Metrics */}
         {isDetecting && (
-          <div className="grid grid-cols-3 gap-4 text-sm">
-            <div>
-              <span className="text-muted-foreground">FPS:</span>
-              <span className={`ml-2 font-mono ${stats.fps >= 20 ? 'text-green-600' : stats.fps >= 15 ? 'text-yellow-600' : 'text-red-600'}`}>
-                {stats.fps}
-              </span>
+          <>
+            {/* Performance Stats */}
+            <div className="grid grid-cols-3 gap-4 text-sm">
+              <div>
+                <span className="text-muted-foreground">FPS:</span>
+                <span className={`ml-2 font-mono ${stats.fps >= 20 ? 'text-green-600' : stats.fps >= 15 ? 'text-yellow-600' : 'text-red-600'}`}>
+                  {stats.fps}
+                </span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Detection:</span>
+                <span className="ml-2 font-mono">{stats.detectionTime}ms</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Confidence:</span>
+                <span className="ml-2 font-mono">{stats.averageConfidence}%</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Total:</span>
+                <span className="ml-2 font-mono">{stats.totalDetections}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Dropped:</span>
+                <span className="ml-2 font-mono">{stats.droppedFrames}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Mode:</span>
+                <span className="ml-2 font-mono capitalize">{performanceMode}</span>
+              </div>
             </div>
-            <div>
-              <span className="text-muted-foreground">Detection:</span>
-              <span className="ml-2 font-mono">{stats.detectionTime}ms</span>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Confidence:</span>
-              <span className="ml-2 font-mono">{stats.averageConfidence}%</span>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Total:</span>
-              <span className="ml-2 font-mono">{stats.totalDetections}</span>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Dropped:</span>
-              <span className="ml-2 font-mono">{stats.droppedFrames}</span>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Mode:</span>
-              <span className="ml-2 font-mono capitalize">{performanceMode}</span>
-            </div>
-          </div>
+
+            {/* Real-time Metrics (se recording attivo) */}
+            {shouldUseRecording && recording?.isRecording && recording.currentMetrics && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
+                <Card className="p-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <h5 className="text-xs font-medium">ROM Spalla</h5>
+                    <BarChart className="h-3 w-3 text-muted-foreground" />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs">
+                      <span>SX</span>
+                      <span className="font-mono">{Math.round(recording.currentMetrics.rom.shoulderLeft)}°</span>
+                    </div>
+                    <Progress value={recording.currentMetrics.rom.shoulderLeft / 180 * 100} className="h-1" />
+                  </div>
+                </Card>
+
+                <Card className="p-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <h5 className="text-xs font-medium">Velocità</h5>
+                    <Zap className="h-3 w-3 text-muted-foreground" />
+                  </div>
+                  <div className="text-lg font-mono">
+                    {recording.currentMetrics.velocity.avgVelocity.toFixed(1)}
+                  </div>
+                  <div className="text-xs text-muted-foreground">px/s</div>
+                </Card>
+
+                <Card className="p-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <h5 className="text-xs font-medium">Stabilità</h5>
+                    <Target className="h-3 w-3 text-muted-foreground" />
+                  </div>
+                  <div className="text-lg font-mono">
+                    {Math.round(recording.currentMetrics.stability.balanceScore)}
+                  </div>
+                  <Progress value={recording.currentMetrics.stability.balanceScore} className="h-1 mt-1" />
+                </Card>
+
+                <Card className="p-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <h5 className="text-xs font-medium">Simmetria</h5>
+                    <Activity className="h-3 w-3 text-muted-foreground" />
+                  </div>
+                  <div className="text-lg font-mono">
+                    {Math.round(recording.currentMetrics.symmetry.overall)}%
+                  </div>
+                  <Progress value={recording.currentMetrics.symmetry.overall} className="h-1 mt-1" />
+                </Card>
+              </div>
+            )}
+          </>
         )}
 
         {/* Controlli */}
@@ -574,6 +691,38 @@ export function PoseDetection({
               </>
             )}
           </Button>
+
+          {/* Recording Controls (se abilitati) */}
+          {shouldUseRecording && isDetecting && (
+            <>
+              {!recording?.isRecording ? (
+                <Button onClick={handleStartRecording} variant="default">
+                  <Database className="h-4 w-4 mr-2" />
+                  Inizia Registrazione
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    onClick={() => recording.togglePause()}
+                    variant="outline"
+                  >
+                    {recording.isPaused ? (
+                      <Play className="h-4 w-4" />
+                    ) : (
+                      <Pause className="h-4 w-4" />
+                    )}
+                  </Button>
+                  <Button
+                    onClick={handleStopRecording}
+                    variant="destructive"
+                  >
+                    <Square className="h-4 w-4 mr-2" />
+                    Termina
+                  </Button>
+                </>
+              )}
+            </>
+          )}
           
           <Button 
             onClick={resetStats}
@@ -599,6 +748,16 @@ export function PoseDetection({
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
               In attesa del video stream per iniziare la pose detection.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Recording Info */}
+        {enableRecording && !pazienteId && (
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Per abilitare la registrazione dei dati, è necessario specificare un ID paziente.
             </AlertDescription>
           </Alert>
         )}
