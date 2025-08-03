@@ -1,9 +1,9 @@
 # 📹 Physio Portal - Stato Progetto con WebCam Funzionante
 
 ## 🎯 Stato Attuale del Progetto
-**Data:** 3 Gennaio 2025  
-**Versione:** 0.2.0  
-**Milestone:** Computer Vision Integration Completata  
+**Data:** 3 Agosto 2025
+**Versione:** 0.2.1
+**Milestone:** Landmarks Alignment Fix Completato
 
 ## 🌳 Albero Completo del Progetto
 
@@ -34,21 +34,30 @@ physio-portal/
 │   │   │   ├── 📁 fisioterapista/      # Registrazione fisioterapisti
 │   │   │   └── 📁 paziente/            # Registrazione pazienti
 │   │   │
-│   │   └── 📁 sessione/                # 🆕 Sistema sessioni riabilitazione
-│   │       ├── page.tsx                # Lista sessioni / Nuova sessione
-│   │       └── 📁 [id]/                # Sessione specifica
-│   │           └── page.tsx            # Interfaccia sessione con webcam
+│   │   ├── 📁 sessione/                # 🆕 Sistema sessioni riabilitazione
+│   │   │   ├── page.tsx                # Lista sessioni / Nuova sessione
+│   │   │   └── 📁 [id]/                # Sessione specifica
+│   │   │       └── page.tsx            # Interfaccia sessione con webcam
+│   │   │
+│   │   └── 📁 test-landmarks/          # 🆕 Pagina test allineamento landmarks
+│   │       └── page.tsx                # Debug landmarks alignment
 │   │
 │   ├── 📁 components/                  # Componenti React
 │   │   ├── 📁 computer-vision/         # 🆕 Componenti Computer Vision
 │   │   │   ├── index.ts                # Export barrel per CV components
 │   │   │   ├── WebcamCapture.tsx       # 📹 Cattura video webcam
 │   │   │   ├── PoseDetection.tsx       # 🤖 Rilevamento pose MediaPipe
+│   │   │   ├── PoseOverlay.tsx         # 🎨 Rendering landmarks su canvas (FIXED)
+│   │   │   ├── PoseLegend.tsx          # 🏷️ Legenda colori parti del corpo
 │   │   │   ├── LandmarkRenderer.tsx    # 🎨 Rendering landmarks su canvas
 │   │   │   └── SessionController.tsx   # 🎮 Controlli sessione riabilitazione
 │   │   │
 │   │   ├── 📁 providers/               # Provider di contesto
 │   │   │   └── ClientProvider.tsx      # Provider client-side (aggiornato)
+│   │   │
+│   │   ├── 📁 session/                 # 🆕 Componenti sessioni riabilitazione
+│   │   │   ├── PatientView.tsx         # 👤 Vista paziente fullscreen
+│   │   │   └── TherapistView.tsx       # 👨‍⚕️ Vista terapista split-screen (FIXED)
 │   │   │
 │   │   ├── 📁 shared/                  # Componenti condivisi
 │   │   │   ├── AuthWrapper.tsx         # Wrapper autenticazione (fixed hydration)
@@ -99,10 +108,17 @@ physio-portal/
 
 ## 🆕 Nuove Funzionalità Implementate
 
+### 🎯 **Fix Allineamento Landmarks (v0.2.1)**
+- **PoseOverlay.tsx** - Correzione automatica allineamento landmarks
+- **PatientView.tsx** - Vista paziente fullscreen perfettamente funzionante
+- **TherapistView.tsx** - Vista terapista con landmarks allineati in layout split-screen
+- **test-landmarks/** - Pagina debug per test allineamento landmarks
+
 ### 📹 **Sistema Computer Vision**
 - **WebcamCapture.tsx** - Cattura video dalla webcam del browser
 - **PoseDetection.tsx** - Integrazione MediaPipe per rilevamento pose
-- **LandmarkRenderer.tsx** - Rendering landmarks corporei su canvas
+- **PoseOverlay.tsx** - Rendering landmarks corporei su canvas (FIXED)
+- **PoseLegend.tsx** - Legenda colori parti del corpo
 - **SessionController.tsx** - Controlli per gestire sessioni di riabilitazione
 
 ### 🎮 **Interfaccia Sessioni**
@@ -170,12 +186,16 @@ physio-portal/
 - [x] Pagine login e registrazione
 - [x] Layout mobile-first
 
-### 📹 **Computer Vision (NUOVO)**
+### 📹 **Computer Vision (AGGIORNATO)**
 - [x] Cattura webcam funzionante
 - [x] Integrazione MediaPipe
 - [x] Rilevamento pose real-time
 - [x] Rendering landmarks su canvas
 - [x] Controlli sessione interattivi
+- [x] **FIX: Allineamento landmarks perfetto** ✨
+- [x] **Vista paziente fullscreen funzionante** ✨
+- [x] **Vista terapista split-screen con landmarks allineati** ✨
+- [x] **Pagina test per debug landmarks** ✨
 
 ### 🗄️ **Database & Backend**
 - [x] Schema database completo (8 tabelle)
@@ -204,6 +224,20 @@ physio-portal/
 - [ ] Feedback real-time durante esercizi
 
 ## 🔍 Dettagli Tecnici Computer Vision
+
+### 🎯 **Fix Allineamento Landmarks (v0.2.1)**
+```typescript
+// Problema risolto:
+- Landmarks disallineati nella vista terapista (layout split-screen)
+- Vista paziente funzionante (layout fullscreen)
+- Disallineamento causato da container 50% width
+
+// Soluzione implementata:
+- Rilevamento automatico layout tramite className
+- Correzione transform: scaleX(-1) per vista terapista
+- Pagina test-landmarks per debug futuro
+- Allineamento perfetto in tutti i layout
+```
 
 ### 📹 **WebcamCapture Component**
 ```typescript
@@ -346,6 +380,8 @@ physio-portal/
 - [x] Supabase auth helpers
 - [x] Webpack cache corruption
 - [x] MediaPipe loading issues
+- [x] **Landmarks disallineati vista terapista** ✨
+- [x] **Layout split-screen pose detection** ✨
 
 ### 🔄 **Miglioramenti Applicati**
 - [x] Gestione localStorage sicura
@@ -358,14 +394,19 @@ physio-portal/
 
 ## 🎉 Conclusioni
 
-Il progetto **Physio Portal** ha raggiunto un milestone importante con l'integrazione completa del sistema computer vision. La webcam funziona correttamente, MediaPipe rileva le pose in tempo reale, e l'interfaccia utente è completamente responsive.
+Il progetto **Physio Portal** ha raggiunto un milestone critico con la risoluzione completa del problema di allineamento landmarks. Ora tutte le viste funzionano perfettamente:
 
-**Stato Attuale:** ✅ **WEBCAM E COMPUTER VISION FUNZIONANTI**
+- ✅ **Vista Paziente**: Landmarks perfettamente allineati in layout fullscreen
+- ✅ **Vista Terapista**: Landmarks corretti anche in layout split-screen
+- ✅ **Pagina Test**: Strumento debug per verifiche future
+
+**Stato Attuale:** ✅ **LANDMARKS ALIGNMENT PERFETTO - TUTTE LE VISTE FUNZIONANTI**
 
 **Prossimo Focus:** Implementazione analytics e salvataggio dati sessioni su database.
 
 ---
 
-**Ultimo aggiornamento:** 3 Gennaio 2025  
-**Versione:** 0.2.0 - Computer Vision Ready  
+**Ultimo aggiornamento:** 3 Agosto 2025
+**Versione:** 0.2.1 - Landmarks Alignment Fixed
 **Maintainer:** Team Physio Portal
+**Commit:** c94afce - 🎯 Fix: Risolto allineamento landmarks pose detection
