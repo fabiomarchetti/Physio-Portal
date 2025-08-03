@@ -87,16 +87,17 @@
 
 .patient-view canvas {
   /* Ottimizzazione canvas per schermi grandi */
-  position: fixed !important;
+  position: absolute !important;
   top: 0 !important;
   left: 0 !important;
-  width: 100vw !important;
-  height: 100vh !important;
+  width: 100% !important;
+  height: 100% !important;
   object-fit: cover !important;
   transform: scaleX(-1) !important; /* Effetto specchio */
   image-rendering: auto;
   image-rendering: crisp-edges;
   image-rendering: -webkit-optimize-contrast;
+  z-index: 10;
 }
 
 /* Animazioni per feedback paziente */

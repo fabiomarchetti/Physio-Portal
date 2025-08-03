@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { WebcamCapture } from '@/components/computer-vision/WebcamCapture'
 import { PoseDetection } from '@/components/computer-vision/PoseDetection'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -95,18 +94,38 @@ export default function TherapistView({ sessionId }: TherapistViewProps) {
         </div>
 
         {/* Area video */}
-        <div className="h-full relative">
-          {/* Webcam capture visibile per il fisioterapista */}
-          <div className="h-full">
-            <WebcamCapture
-              onVideoReady={setVideoElement}
-              onError={(error) => console.error('Webcam error:', error)}
-            />
-          </div>
+        <div className="h-full relative bg-black">
+          {/* Video element diretto per il fisioterapista */}
+          <video
+            ref={(video) => {
+              if (video && !videoElement) {
+                // Avvia webcam direttamente
+                navigator.mediaDevices.getUserMedia({
+                  video: {
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 },
+                    frameRate: { ideal: 30 },
+                    facingMode: 'user'
+                  },
+                  audio: false
+                }).then(stream => {
+                  video.srcObject = stream
+                  video.play()
+                  setVideoElement(video)
+                }).catch(err => {
+                  console.error('Webcam error:', err)
+                })
+              }
+            }}
+            className="w-full h-full object-cover"
+            autoPlay
+            muted
+            playsInline
+          />
 
           {/* Pose detection overlay con tutti i landmark visibili */}
           {videoElement && (
-            <div className="absolute inset-0 h-full pose-landmarks">
+            <div className="absolute inset-0 w-full h-full pose-landmarks">
               <PoseDetection
                 videoElement={videoElement}
                 onPoseDetected={handlePoseDetected}

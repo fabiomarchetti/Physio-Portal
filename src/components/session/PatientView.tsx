@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { WebcamCapture } from '@/components/computer-vision/WebcamCapture'
 import { PoseDetection } from '@/components/computer-vision/PoseDetection'
 
 interface PatientViewProps {
@@ -90,18 +89,39 @@ export default function PatientView({ sessionId }: PatientViewProps) {
       </div>
 
       {/* Area video principale - fullscreen */}
-      <div className="absolute inset-0 w-full h-full">
-        {/* Webcam capture nascosta */}
-        <div className="absolute -top-full opacity-0 pointer-events-none">
-          <WebcamCapture
-            onVideoReady={setVideoElement}
-            onError={(error) => console.error('Webcam error:', error)}
-          />
-        </div>
+      <div className="absolute inset-0 w-full h-full bg-black">
+        {/* Video element diretto per il paziente */}
+        <video
+          ref={(video) => {
+            if (video && !videoElement) {
+              // Avvia webcam direttamente
+              navigator.mediaDevices.getUserMedia({
+                video: {
+                  width: { ideal: 1920 },
+                  height: { ideal: 1080 },
+                  frameRate: { ideal: 30 },
+                  facingMode: 'user'
+                },
+                audio: false
+              }).then(stream => {
+                video.srcObject = stream
+                video.play()
+                setVideoElement(video)
+              }).catch(err => {
+                console.error('Webcam error:', err)
+              })
+            }
+          }}
+          className="w-full h-full object-cover"
+          style={{ transform: 'scaleX(-1)' }} // Effetto specchio
+          autoPlay
+          muted
+          playsInline
+        />
 
-        {/* Pose detection con overlay fullscreen */}
+        {/* Pose detection overlay con effetto specchio */}
         {videoElement && (
-          <div className="absolute inset-0 w-full h-full">
+          <div className="absolute inset-0 w-full h-full pose-landmarks">
             <PoseDetection
               videoElement={videoElement}
               onPoseDetected={handlePoseDetected}
@@ -110,9 +130,6 @@ export default function PatientView({ sessionId }: PatientViewProps) {
             />
           </div>
         )}
-
-        {/* Overlay per il video - effetto mirror applicato via CSS */}
-        <div className="absolute inset-0 pose-landmarks" />
       </div>
 
       {/* Feedback area - bottom overlay */}
