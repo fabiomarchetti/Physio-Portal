@@ -30,7 +30,7 @@ export default function ResetPasswordPage() {
     
     if (error) {
       if (errorCode === 'otp_expired') {
-        setError('Il link di reset è scaduto. Richiedi un nuovo link.')
+        setError('Il link di reset è scaduto. Richiedi un nuovo link dalla pagina di login.')
       } else {
         setError(errorDescription || 'Link di reset non valido')
       }
@@ -38,31 +38,41 @@ export default function ResetPasswordPage() {
     }
 
     // Verifica se abbiamo i parametri necessari per il reset
-    const code = searchParams.get('code')
+    const accessToken = searchParams.get('access_token')
+    const refreshToken = searchParams.get('refresh_token')
     const type = searchParams.get('type')
     
-    if (!code || type !== 'recovery') {
-      setError('Link di reset non valido o scaduto')
+    // Prova diversi formati di parametri che Supabase può usare
+    if (accessToken && refreshToken && type === 'recovery') {
+      // Imposta la sessione con i token
+      const setSession = async () => {
+        try {
+          const supabase = createClient()
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken
+          })
+          
+          if (error) {
+            console.error('Errore set session:', error)
+            setError('Link di reset non valido o scaduto')
+          } else {
+            console.log('✅ Sessione impostata per reset password')
+          }
+        } catch (err) {
+          console.error('Errore set session:', err)
+          setError('Link di reset non valido o scaduto')
+        }
+      }
+      
+      setSession()
       return
     }
 
-    // Scambia il codice per una sessione
-    const exchangeCodeForSession = async () => {
-      try {
-        const supabase = createClient()
-        const { error } = await supabase.auth.exchangeCodeForSession(code)
-        
-        if (error) {
-          console.error('Errore exchange code:', error)
-          setError('Link di reset non valido o scaduto')
-        }
-      } catch (err) {
-        console.error('Errore exchange code:', err)
-        setError('Link di reset non valido o scaduto')
-      }
+    // Fallback: se non abbiamo i parametri giusti, mostra errore
+    if (!accessToken && !refreshToken) {
+      setError('Link di reset non valido o scaduto. Richiedi un nuovo link dalla pagina di login.')
     }
-
-    exchangeCodeForSession()
   }, [searchParams])
 
   const handleResetPassword = async (e: React.FormEvent) => {
