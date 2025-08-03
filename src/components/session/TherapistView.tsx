@@ -1,7 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { PoseDetection } from '@/components/computer-vision/PoseDetection'
+import { PoseOverlay } from '@/components/computer-vision/PoseOverlay'
+import { PoseLegend } from '@/components/computer-vision/PoseLegend'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -33,10 +35,20 @@ interface PoseDetectionResult {
 
 export default function TherapistView({ sessionId }: TherapistViewProps) {
   const [videoElement, setVideoElement] = useState<HTMLVideoElement | null>(null)
-  const [isSessionActive, setIsSessionActive] = useState(false)
+  const [isSessionActive, setIsSessionActive] = useState(true)
   const [currentExercise, setCurrentExercise] = useState('Valutazione iniziale')
   const [sessionDuration, setSessionDuration] = useState(0)
   const [patientFeedback, setPatientFeedback] = useState('')
+  const [currentPose, setCurrentPose] = useState<PoseDetectionResult | null>(null)
+  const [mediaStream, setMediaStream] = useState<MediaStream | null>(null)
+  const [screenInfo, setScreenInfo] = useState({
+    width: 0,
+    height: 0,
+    aspectRatio: 0,
+    pixelRatio: 1,
+    isTouch: false,
+    orientation: 'landscape' as 'landscape' | 'portrait'
+  })
 
   // Timer per durata sessione
   useEffect(() => {
@@ -50,8 +62,12 @@ export default function TherapistView({ sessionId }: TherapistViewProps) {
   }, [isSessionActive])
 
   const handlePoseDetected = (result: PoseDetectionResult) => {
-    // Qui processeremo i dati per analytics e feedback
-    console.log('Pose detected in therapist view:', result)
+    // Aggiorna lo stato con i nuovi dati pose per la visualizzazione
+    setCurrentPose(result)
+    console.log('🎯 Pose detected in therapist view:', {
+      landmarksCount: result.landmarks?.length || 0,
+      confidence: result.landmarks ? result.landmarks.reduce((acc, landmark) => acc + (landmark.visibility || 0), 0) / result.landmarks.length : 0
+    })
   }
 
   const formatTime = (seconds: number) => {
@@ -60,8 +76,64 @@ export default function TherapistView({ sessionId }: TherapistViewProps) {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
   }
 
-  const toggleSession = () => {
-    setIsSessionActive(!isSessionActive)
+  const toggleSession = async () => {
+    if (isSessionActive) {
+      // STOP: Ferma webcam e pose detection
+      setIsSessionActive(false)
+      
+      // Ferma lo stream della webcam
+      if (mediaStream) {
+        mediaStream.getTracks().forEach(track => {
+          track.stop()
+          console.log('📹 Track fermato:', track.kind)
+        })
+        setMediaStream(null)
+      }
+      
+      // Pulisci il video element
+      if (videoElement) {
+        videoElement.srcObject = null
+      }
+      
+      console.log('🛑 Webcam e pose detection fermati')
+      
+    } else {
+      // START: Riavvia webcam e pose detection
+      if (videoElement && screenInfo.width > 0) {
+        try {
+          const videoSettings = getOptimalVideoSettings()
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: videoSettings,
+            audio: false
+          })
+          
+          videoElement.srcObject = stream
+          await videoElement.play()
+          setMediaStream(stream)
+          setIsSessionActive(true)
+          
+          console.log('▶️ Webcam riavviata con impostazioni:', videoSettings)
+          
+        } catch (err) {
+          console.error('❌ Errore riavvio webcam:', err)
+          // Fallback
+          try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+              video: { facingMode: 'user' },
+              audio: false
+            })
+            
+            videoElement.srcObject = stream
+            await videoElement.play()
+            setMediaStream(stream)
+            setIsSessionActive(true)
+            
+          } catch (fallbackErr) {
+            console.error('❌ Errore fallback webcam:', fallbackErr)
+          }
+        }
+      }
+    }
   }
 
   const sendFeedbackToPatient = (message: string) => {
@@ -70,12 +142,83 @@ export default function TherapistView({ sessionId }: TherapistViewProps) {
     console.log('Sending feedback to patient:', message)
   }
 
+  // Rilevamento caratteristiche schermo per vista fisioterapista
+  useEffect(() => {
+    const updateScreenInfo = () => {
+      const width = window.innerWidth
+      const height = window.innerHeight
+      const aspectRatio = width / height
+      const pixelRatio = window.devicePixelRatio || 1
+      const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0
+      const orientation = width > height ? 'landscape' : 'portrait'
+
+      setScreenInfo({
+        width,
+        height,
+        aspectRatio,
+        pixelRatio,
+        isTouch,
+        orientation
+      })
+    }
+
+    updateScreenInfo()
+    window.addEventListener('resize', updateScreenInfo)
+    window.addEventListener('orientationchange', () => {
+      setTimeout(updateScreenInfo, 100)
+    })
+
+    return () => {
+      window.removeEventListener('resize', updateScreenInfo)
+      window.removeEventListener('orientationchange', updateScreenInfo)
+    }
+  }, [])
+
+  // Cleanup webcam quando il componente viene smontato
+  useEffect(() => {
+    return () => {
+      if (mediaStream) {
+        mediaStream.getTracks().forEach(track => {
+          track.stop()
+          console.log('🧹 Cleanup: Track fermato:', track.kind)
+        })
+      }
+    }
+  }, [mediaStream])
+
+  // Impostazioni video ottimali per fisioterapista (risoluzione più bassa per performance)
+  const getOptimalVideoSettings = useCallback(() => {
+    const { width, pixelRatio } = screenInfo
+    
+    let idealWidth = 1280
+    let idealHeight = 720
+    
+    // Per fisioterapista usiamo risoluzioni più conservative per performance
+    if (width >= 2560) {
+      idealWidth = 1280
+      idealHeight = 720
+    } else if (width >= 1920) {
+      idealWidth = 1280
+      idealHeight = 720
+    } else if (width <= 1024) {
+      idealWidth = 640
+      idealHeight = 480
+    }
+
+    return {
+      width: { ideal: idealWidth },
+      height: { ideal: idealHeight },
+      frameRate: { ideal: 30 },
+      facingMode: 'user'
+    }
+  }, [screenInfo])
+
   return (
-    <div className="h-screen flex bg-gray-50 therapist-view">
+    <div className="h-screen flex bg-gray-50 therapist-view border-0" style={{ border: 'none !important', outline: 'none !important' }}>
       {/* Lato sinistro - Video del paziente (50%) */}
-      <div className="w-1/2 bg-black relative therapist-video-panel">
+      <div className="w-1/2 bg-black relative therapist-video-panel border-0" style={{ border: 'none !important', outline: 'none !important' }}>
         {/* Header video */}
-        <div className="absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/80 to-transparent p-4">
+        <div className="absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/80 to-transparent p-4 border-0" style={{ border: 'none !important', outline: 'none !important' }}>
           <div className="flex items-center justify-between text-white">
             <div>
               <h2 className="text-xl font-semibold">Vista Paziente</h2>
@@ -94,94 +237,104 @@ export default function TherapistView({ sessionId }: TherapistViewProps) {
         </div>
 
         {/* Area video */}
-        <div className="h-full relative bg-black">
+        <div className="h-full relative bg-black overflow-hidden border-0" style={{ border: 'none !important', outline: 'none !important' }}>
           {/* Video element diretto per il fisioterapista */}
           <video
             ref={(video) => {
-              if (video && !videoElement) {
-                // Avvia webcam direttamente
+              if (video && !videoElement && screenInfo.width > 0) {
+                // Avvia webcam con impostazioni ottimali
+                const videoSettings = getOptimalVideoSettings()
                 navigator.mediaDevices.getUserMedia({
-                  video: {
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 },
-                    frameRate: { ideal: 30 },
-                    facingMode: 'user'
-                  },
+                  video: videoSettings,
                   audio: false
                 }).then(stream => {
                   video.srcObject = stream
                   video.play()
                   setVideoElement(video)
+                  setMediaStream(stream)
+                  console.log('📹 Therapist webcam con impostazioni:', videoSettings)
                 }).catch(err => {
                   console.error('Webcam error:', err)
+                  // Fallback
+                  navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'user' },
+                    audio: false
+                  }).then(stream => {
+                    video.srcObject = stream
+                    video.play()
+                    setVideoElement(video)
+                    setMediaStream(stream)
+                  }).catch(fallbackErr => {
+                    console.error('Webcam fallback error:', fallbackErr)
+                  })
                 })
               }
             }}
-            className="w-full h-full object-cover"
+            className="absolute inset-0 w-full h-full object-cover"
             autoPlay
             muted
             playsInline
+            style={{ zIndex: 1 }}
           />
 
-          {/* Pose detection overlay con tutti i landmark visibili */}
+          {/* Pose detection (nascosto) + Overlay visibile */}
           {videoElement && (
-            <div className="absolute inset-0 w-full h-full pose-landmarks">
-              <PoseDetection
-                videoElement={videoElement}
-                onPoseDetected={handlePoseDetected}
-                isActive={isSessionActive}
-                enableRecording={true}
-                pazienteId="patient-123" // Sarà dinamico
-                tipoEsercizio={currentExercise}
-                obiettivi="Miglioramento mobilità spalla destra"
-              />
-            </div>
+            <>
+              {/* PoseDetection nascosto per il rilevamento */}
+              <div className="absolute inset-0 w-full h-full" style={{ opacity: 0, pointerEvents: 'none' }}>
+                <PoseDetection
+                  videoElement={videoElement}
+                  onPoseDetected={handlePoseDetected}
+                  isActive={isSessionActive}
+                  enableRecording={true}
+                  pazienteId="patient-123" // Sarà dinamico
+                  tipoEsercizio={currentExercise}
+                  obiettivi="Miglioramento mobilità spalla destra"
+                />
+              </div>
+              
+              {/* Overlay visibile con punti colorati */}
+              {currentPose && currentPose.landmarks && (
+                <PoseOverlay
+                  landmarks={currentPose.landmarks}
+                  videoElement={videoElement}
+                  confidence={currentPose.landmarks.reduce((acc, landmark) => acc + (landmark.visibility || 0), 0) / currentPose.landmarks.length}
+                  className="pose-overlay"
+                  mirrorMode={false}
+                  flipLandmarks={true}
+                />
+              )}
+            </>
           )}
         </div>
 
-        {/* Controlli video overlay */}
-        <div className="absolute bottom-4 left-4 right-4 z-10">
-          <div className="bg-black/80 rounded-lg p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Button
-                  onClick={toggleSession}
-                  variant={isSessionActive ? "destructive" : "default"}
-                  size="sm"
-                >
-                  {isSessionActive ? (
-                    <>
-                      <Pause className="h-4 w-4 mr-2" />
-                      Pausa
-                    </>
-                  ) : (
-                    <>
-                      <Play className="h-4 w-4 mr-2" />
-                      Avvia
-                    </>
-                  )}
-                </Button>
-                <Button variant="outline" size="sm">
-                  <Square className="h-4 w-4 mr-2" />
-                  Stop
-                </Button>
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <Button variant="outline" size="sm">
-                  <Monitor className="h-4 w-4 mr-2" />
-                  Schermo Paziente
-                </Button>
-              </div>
-            </div>
-          </div>
+        {/* Pulsante Start/Stop nella parte destra del video */}
+        <div className="absolute top-1/2 right-4 transform -translate-y-1/2" style={{ zIndex: 50 }}>
+          <Button
+            onClick={toggleSession}
+            variant={isSessionActive ? "destructive" : "default"}
+            size="lg"
+            className="shadow-2xl bg-white/90 hover:bg-white text-black border-2 border-gray-300"
+          >
+            {isSessionActive ? (
+              <>
+                <Pause className="h-5 w-5 mr-2" />
+                Stop Cattura
+              </>
+            ) : (
+              <>
+                <Play className="h-5 w-5 mr-2" />
+                Start Cattura
+              </>
+            )}
+          </Button>
         </div>
       </div>
 
       {/* Lato destro - Controlli e Analytics (50%) */}
-      <div className="w-1/2 flex flex-col therapist-controls-panel">
+      <div className="w-1/2 flex flex-col therapist-controls-panel border-0" style={{ border: 'none !important', outline: 'none !important' }}>
         {/* Header controlli */}
-        <div className="bg-white border-b p-4">
+        <div className="bg-white p-4 border-0" style={{ border: 'none !important', outline: 'none !important' }}>
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Pannello Fisioterapista</h1>
@@ -220,6 +373,9 @@ export default function TherapistView({ sessionId }: TherapistViewProps) {
 
             {/* Tab Controlli */}
             <TabsContent value="controls" className="space-y-4 mt-4">
+              {/* Legenda colori parti del corpo */}
+              <PoseLegend className="mb-4" />
+              
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center">
@@ -230,8 +386,9 @@ export default function TherapistView({ sessionId }: TherapistViewProps) {
                 <CardContent className="space-y-4">
                   <div>
                     <label className="text-sm font-medium">Esercizio Corrente</label>
-                    <select 
-                      className="w-full mt-1 p-2 border rounded-md"
+                    <select
+                      className="w-full mt-1 p-2 rounded-md border-0"
+                      style={{ border: 'none !important', outline: 'none !important', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}
                       value={currentExercise}
                       onChange={(e) => setCurrentExercise(e.target.value)}
                     >
@@ -284,7 +441,8 @@ export default function TherapistView({ sessionId }: TherapistViewProps) {
                     <input
                       type="text"
                       placeholder="Scrivi un messaggio per il paziente..."
-                      className="flex-1 p-2 border rounded-md"
+                      className="flex-1 p-2 rounded-md border-0"
+                      style={{ border: 'none !important', outline: 'none !important', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}
                       onKeyPress={(e) => {
                         if (e.key === 'Enter') {
                           sendFeedbackToPatient(e.currentTarget.value)

@@ -143,10 +143,14 @@
 }
 
 .therapist-video-panel canvas {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
   width: 100% !important;
   height: 100% !important;
   object-fit: cover !important;
   /* Non specchiamo il video per il fisioterapista - vista naturale */
+  z-index: 10;
 }
 
 .therapist-video-panel video {
@@ -186,8 +190,87 @@
   z-index: 10;
 }
 
-/* Responsive per schermi molto grandi */
-@media (min-width: 1920px) {
+/* SISTEMA RESPONSIVE COMPLETO - Adattamento a tutte le tipologie di schermo */
+
+/* Schermi molto piccoli - Tablet portrait, laptop piccoli */
+@media (max-width: 768px) {
+  .patient-view {
+    font-size: 0.875rem;
+  }
+  
+  .patient-view h1 {
+    font-size: 1.875rem;
+  }
+  
+  .patient-view .feedback-message {
+    font-size: 1.125rem;
+    padding: 0.75rem 1rem;
+  }
+  
+  .therapist-view {
+    flex-direction: column;
+  }
+  
+  .therapist-view .w-1\/2 {
+    width: 100% !important;
+    height: 50vh;
+  }
+  
+  .therapist-controls-panel {
+    height: 50vh;
+  }
+}
+
+/* Schermi piccoli - Tablet landscape, laptop piccoli */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .patient-view {
+    font-size: 1rem;
+  }
+  
+  .patient-view h1 {
+    font-size: 2.25rem;
+  }
+  
+  .patient-view .feedback-message {
+    font-size: 1.25rem;
+    padding: 1rem 1.5rem;
+  }
+}
+
+/* Schermi medi - Laptop standard */
+@media (min-width: 1025px) and (max-width: 1366px) {
+  .patient-view {
+    font-size: 1.125rem;
+  }
+  
+  .patient-view h1 {
+    font-size: 2.5rem;
+  }
+  
+  .patient-view .feedback-message {
+    font-size: 1.5rem;
+    padding: 1.25rem 2rem;
+  }
+}
+
+/* Schermi grandi - Desktop standard */
+@media (min-width: 1367px) and (max-width: 1919px) {
+  .patient-view {
+    font-size: 1.125rem;
+  }
+  
+  .patient-view h1 {
+    font-size: 3rem;
+  }
+  
+  .patient-view .feedback-message {
+    font-size: 1.75rem;
+    padding: 1.5rem 2.5rem;
+  }
+}
+
+/* Schermi molto grandi - Full HD+ */
+@media (min-width: 1920px) and (max-width: 2559px) {
   .patient-view {
     font-size: 1.25rem;
   }
@@ -202,6 +285,7 @@
   }
 }
 
+/* Schermi ultra grandi - 4K e superiori */
 @media (min-width: 2560px) {
   .patient-view {
     font-size: 1.5rem;
@@ -214,6 +298,80 @@
   .patient-view .feedback-message {
     font-size: 3rem;
     padding: 2.5rem 4rem;
+  }
+}
+
+/* Schermi ultra-wide (aspect ratio > 2:1) */
+@media (min-aspect-ratio: 21/9) {
+  .patient-view .feedback-message {
+    max-width: 60vw;
+    margin: 0 auto;
+  }
+  
+  .patient-view .absolute.top-6.right-6 {
+    right: 10vw;
+  }
+  
+  .patient-view .absolute.bottom-20.left-6 {
+    left: 10vw;
+  }
+}
+
+/* Orientamento portrait per tablet */
+@media (orientation: portrait) and (max-width: 1024px) {
+  .therapist-view {
+    flex-direction: column !important;
+  }
+  
+  .therapist-view .w-1\/2 {
+    width: 100% !important;
+  }
+  
+  .therapist-video-panel {
+    height: 40vh;
+  }
+  
+  .therapist-controls-panel {
+    height: 60vh;
+  }
+}
+
+/* Schermi con altezza ridotta (laptop con dock/taskbar) */
+@media (max-height: 720px) {
+  .patient-view h1 {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+  }
+  
+  .patient-view .feedback-message {
+    font-size: 1.25rem;
+    padding: 0.75rem 1.5rem;
+  }
+  
+  .therapist-controls-panel {
+    font-size: 0.875rem;
+  }
+}
+
+/* Schermi con DPI elevato (Retina, 4K) */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .patient-view canvas,
+  .therapist-video-panel canvas {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+  }
+}
+
+/* Adattamenti per schermi touch */
+@media (pointer: coarse) {
+  .therapist-quick-actions button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  .patient-view button {
+    min-height: 48px;
+    padding: 0.75rem 1.5rem;
   }
 }
 
@@ -293,4 +451,41 @@
   background: linear-gradient(90deg, #ef4444, #f59e0b, #10b981);
   border-radius: 9999px;
   height: 8px;
+}
+
+/* Rimozione bordi per sistema dual-screen */
+.patient-view *,
+.therapist-view * {
+  border: none !important;
+  outline: none !important;
+}
+
+/* Eccezioni per elementi che necessitano di bordi funzionali */
+.patient-view button,
+.therapist-view button,
+.patient-view input,
+.therapist-view input,
+.patient-view select,
+.therapist-view select {
+  border: none !important;
+  outline: none !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Rimozione bordi specifici per componenti UI */
+.patient-view .card,
+.therapist-view .card,
+.patient-view [data-radix-collection-item],
+.therapist-view [data-radix-collection-item] {
+  border: none !important;
+  outline: none !important;
+}
+
+/* Rimozione bordi specifici per PoseDetection */
+.patient-view [data-testid="pose-detection"],
+.therapist-view [data-testid="pose-detection"],
+.patient-view .pose-landmarks *,
+.therapist-view .pose-landmarks * {
+  border: none !important;
+  outline: none !important;
 }

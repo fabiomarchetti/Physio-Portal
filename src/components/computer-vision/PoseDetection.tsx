@@ -49,13 +49,13 @@ interface PoseDetectionProps {
   onSessionComplete?: (sessionId: string) => void
 }
 
-// Performance settings
+// Performance settings - OTTIMIZZATO per fluidità video
 const PERFORMANCE_SETTINGS = {
   TARGET_FPS: 30,
-  MIN_CONFIDENCE: 0.5,
-  DRAWING_THROTTLE: 3,
+  MIN_CONFIDENCE: 0.4,
+  DRAWING_THROTTLE: 2,
   STATS_UPDATE_INTERVAL: 1000,
-  CANVAS_SCALE: 1,
+  CANVAS_SCALE: 0.8, // Ridotto per performance
 }
 
 // MediaPipe Pose landmark indices
@@ -124,23 +124,23 @@ export function PoseDetection({
       case 'high':
         return {
           TARGET_FPS: 30,
-          MIN_CONFIDENCE: 0.7,
-          DRAWING_THROTTLE: 1,
-          CANVAS_SCALE: 1
+          MIN_CONFIDENCE: 0.6,
+          DRAWING_THROTTLE: 2,
+          CANVAS_SCALE: 0.9
         }
       case 'fast':
         return {
-          TARGET_FPS: 15,
+          TARGET_FPS: 20,
           MIN_CONFIDENCE: 0.4,
-          DRAWING_THROTTLE: 5,
-          CANVAS_SCALE: 0.8
+          DRAWING_THROTTLE: 3,
+          CANVAS_SCALE: 0.7
         }
       default: // balanced
         return {
-          TARGET_FPS: 24,
+          TARGET_FPS: 25,
           MIN_CONFIDENCE: 0.5,
           DRAWING_THROTTLE: 2,
-          CANVAS_SCALE: 0.9
+          CANVAS_SCALE: 0.8
         }
     }
   }, [performanceMode])
@@ -166,9 +166,9 @@ export function PoseDetection({
         },
         runningMode: 'VIDEO',
         numPoses: 1,
-        minPoseDetectionConfidence: config.MIN_CONFIDENCE,
-        minPosePresenceConfidence: config.MIN_CONFIDENCE,
-        minTrackingConfidence: config.MIN_CONFIDENCE,
+        minPoseDetectionConfidence: 0.3, // Ridotto per maggiore reattività
+        minPosePresenceConfidence: 0.3,  // Ridotto per maggiore reattività
+        minTrackingConfidence: 0.3,      // Ridotto per maggiore reattività
         outputSegmentationMasks: false
       })
       
@@ -184,7 +184,7 @@ export function PoseDetection({
     }
   }, [onError, getPerformanceConfig])
 
-  // Optimized landmark drawing (dalla versione ottimizzata)
+  // Enhanced landmark drawing con punti colorati evidenziati
   const drawPoseLandmarksOptimized = useCallback((
     ctx: CanvasRenderingContext2D,
     landmarks: PoseLandmark[],
@@ -194,93 +194,168 @@ export function PoseDetection({
   ) => {
     const config = getPerformanceConfig()
     
-    // Adaptive styling based on confidence
-    const alpha = Math.max(0.3, confidence)
-    const pointRadius = confidence > 0.8 ? 5 : 3
-    const lineWidth = confidence > 0.8 ? 3 : 2
+    // Adaptive styling based on confidence - punti più grandi e visibili
+    const alpha = Math.max(0.7, confidence)
+    const pointRadius = confidence > 0.8 ? 8 : 6
+    const lineWidth = confidence > 0.8 ? 4 : 3
+    const glowRadius = confidence > 0.8 ? 15 : 12
 
-    // High-contrast colors for better visibility
-    const colors = {
-      face: `rgba(255, 107, 107, ${alpha})`,
-      torso: `rgba(78, 205, 196, ${alpha})`,
-      leftArm: `rgba(69, 183, 209, ${alpha})`,
-      rightArm: `rgba(150, 206, 180, ${alpha})`,
-      leftLeg: `rgba(255, 234, 167, ${alpha})`,
-      rightLeg: `rgba(221, 160, 221, ${alpha})`
+    // Colori vivaci e distintivi per ogni parte del corpo
+    const bodyPartColors = {
+      // Testa e collo
+      head: `rgba(255, 50, 50, ${alpha})`,        // Rosso brillante
+      neck: `rgba(255, 100, 50, ${alpha})`,       // Arancione rosso
+      
+      // Torso
+      torso: `rgba(50, 255, 150, ${alpha})`,      // Verde acqua
+      
+      // Braccio sinistro
+      leftShoulder: `rgba(50, 150, 255, ${alpha})`,   // Blu cielo
+      leftElbow: `rgba(100, 200, 255, ${alpha})`,     // Blu chiaro
+      leftWrist: `rgba(150, 220, 255, ${alpha})`,     // Azzurro
+      
+      // Braccio destro
+      rightShoulder: `rgba(255, 50, 150, ${alpha})`,  // Rosa magenta
+      rightElbow: `rgba(255, 100, 200, ${alpha})`,    // Rosa
+      rightWrist: `rgba(255, 150, 220, ${alpha})`,    // Rosa chiaro
+      
+      // Gamba sinistra
+      leftHip: `rgba(255, 200, 50, ${alpha})`,        // Giallo oro
+      leftKnee: `rgba(255, 220, 100, ${alpha})`,      // Giallo chiaro
+      leftAnkle: `rgba(255, 240, 150, ${alpha})`,     // Giallo pallido
+      
+      // Gamba destra
+      rightHip: `rgba(150, 50, 255, ${alpha})`,       // Viola
+      rightKnee: `rgba(180, 100, 255, ${alpha})`,     // Viola chiaro
+      rightAnkle: `rgba(200, 150, 255, ${alpha})`     // Lilla
     }
 
-    // Key connections only for performance
+    // Connessioni con colori specifici per ogni segmento
     const connections = [
-      [POSE_LANDMARKS.LEFT_SHOULDER, POSE_LANDMARKS.RIGHT_SHOULDER],
-      [POSE_LANDMARKS.LEFT_SHOULDER, POSE_LANDMARKS.LEFT_ELBOW],
-      [POSE_LANDMARKS.LEFT_ELBOW, POSE_LANDMARKS.LEFT_WRIST],
-      [POSE_LANDMARKS.RIGHT_SHOULDER, POSE_LANDMARKS.RIGHT_ELBOW],
-      [POSE_LANDMARKS.RIGHT_ELBOW, POSE_LANDMARKS.RIGHT_WRIST],
-      [POSE_LANDMARKS.LEFT_SHOULDER, POSE_LANDMARKS.LEFT_HIP],
-      [POSE_LANDMARKS.RIGHT_SHOULDER, POSE_LANDMARKS.RIGHT_HIP],
-      [POSE_LANDMARKS.LEFT_HIP, POSE_LANDMARKS.RIGHT_HIP],
-      [POSE_LANDMARKS.LEFT_HIP, POSE_LANDMARKS.LEFT_KNEE],
-      [POSE_LANDMARKS.LEFT_KNEE, POSE_LANDMARKS.LEFT_ANKLE],
-      [POSE_LANDMARKS.RIGHT_HIP, POSE_LANDMARKS.RIGHT_KNEE],
-      [POSE_LANDMARKS.RIGHT_KNEE, POSE_LANDMARKS.RIGHT_ANKLE]
+      // Spalle
+      { start: POSE_LANDMARKS.LEFT_SHOULDER, end: POSE_LANDMARKS.RIGHT_SHOULDER, color: bodyPartColors.torso },
+      
+      // Braccio sinistro
+      { start: POSE_LANDMARKS.LEFT_SHOULDER, end: POSE_LANDMARKS.LEFT_ELBOW, color: bodyPartColors.leftShoulder },
+      { start: POSE_LANDMARKS.LEFT_ELBOW, end: POSE_LANDMARKS.LEFT_WRIST, color: bodyPartColors.leftElbow },
+      
+      // Braccio destro
+      { start: POSE_LANDMARKS.RIGHT_SHOULDER, end: POSE_LANDMARKS.RIGHT_ELBOW, color: bodyPartColors.rightShoulder },
+      { start: POSE_LANDMARKS.RIGHT_ELBOW, end: POSE_LANDMARKS.RIGHT_WRIST, color: bodyPartColors.rightElbow },
+      
+      // Torso
+      { start: POSE_LANDMARKS.LEFT_SHOULDER, end: POSE_LANDMARKS.LEFT_HIP, color: bodyPartColors.torso },
+      { start: POSE_LANDMARKS.RIGHT_SHOULDER, end: POSE_LANDMARKS.RIGHT_HIP, color: bodyPartColors.torso },
+      { start: POSE_LANDMARKS.LEFT_HIP, end: POSE_LANDMARKS.RIGHT_HIP, color: bodyPartColors.torso },
+      
+      // Gamba sinistra
+      { start: POSE_LANDMARKS.LEFT_HIP, end: POSE_LANDMARKS.LEFT_KNEE, color: bodyPartColors.leftHip },
+      { start: POSE_LANDMARKS.LEFT_KNEE, end: POSE_LANDMARKS.LEFT_ANKLE, color: bodyPartColors.leftKnee },
+      
+      // Gamba destra
+      { start: POSE_LANDMARKS.RIGHT_HIP, end: POSE_LANDMARKS.RIGHT_KNEE, color: bodyPartColors.rightHip },
+      { start: POSE_LANDMARKS.RIGHT_KNEE, end: POSE_LANDMARKS.RIGHT_ANKLE, color: bodyPartColors.rightKnee }
     ]
 
-    // Draw connections with gradient effect
+    // Disegna le connessioni con colori specifici
     ctx.lineWidth = lineWidth
     ctx.lineCap = 'round'
-    connections.forEach(([startIdx, endIdx]) => {
-      const start = landmarks[startIdx]
-      const end = landmarks[endIdx]
+    connections.forEach(({ start, end, color }) => {
+      const startLandmark = landmarks[start]
+      const endLandmark = landmarks[end]
       
-      if (start && end &&
-          (start.visibility || 0) > config.MIN_CONFIDENCE &&
-          (end.visibility || 0) > config.MIN_CONFIDENCE) {
+      if (startLandmark && endLandmark &&
+          (startLandmark.visibility || 0) > config.MIN_CONFIDENCE &&
+          (endLandmark.visibility || 0) > config.MIN_CONFIDENCE) {
         
+        // Linea con gradiente
         const gradient = ctx.createLinearGradient(
-          start.x * width, start.y * height,
-          end.x * width, end.y * height
+          startLandmark.x * width, startLandmark.y * height,
+          endLandmark.x * width, endLandmark.y * height
         )
-        gradient.addColorStop(0, colors.torso)
-        gradient.addColorStop(1, colors.leftArm)
+        gradient.addColorStop(0, color)
+        gradient.addColorStop(1, color.replace(alpha.toString(), (alpha * 0.7).toString()))
         
         ctx.strokeStyle = gradient
+        ctx.shadowColor = color
+        ctx.shadowBlur = 3
         ctx.beginPath()
-        ctx.moveTo(start.x * width, start.y * height)
-        ctx.lineTo(end.x * width, end.y * height)
+        ctx.moveTo(startLandmark.x * width, startLandmark.y * height)
+        ctx.lineTo(endLandmark.x * width, endLandmark.y * height)
         ctx.stroke()
+        ctx.shadowBlur = 0
       }
     })
 
-    // Draw key points only
-    const keyPoints = Object.values(POSE_LANDMARKS)
+    // Mappa dei punti salienti con colori specifici
+    const landmarkColorMap = {
+      [POSE_LANDMARKS.NOSE]: bodyPartColors.head,
+      [POSE_LANDMARKS.LEFT_SHOULDER]: bodyPartColors.leftShoulder,
+      [POSE_LANDMARKS.RIGHT_SHOULDER]: bodyPartColors.rightShoulder,
+      [POSE_LANDMARKS.LEFT_ELBOW]: bodyPartColors.leftElbow,
+      [POSE_LANDMARKS.RIGHT_ELBOW]: bodyPartColors.rightElbow,
+      [POSE_LANDMARKS.LEFT_WRIST]: bodyPartColors.leftWrist,
+      [POSE_LANDMARKS.RIGHT_WRIST]: bodyPartColors.rightWrist,
+      [POSE_LANDMARKS.LEFT_HIP]: bodyPartColors.leftHip,
+      [POSE_LANDMARKS.RIGHT_HIP]: bodyPartColors.rightHip,
+      [POSE_LANDMARKS.LEFT_KNEE]: bodyPartColors.leftKnee,
+      [POSE_LANDMARKS.RIGHT_KNEE]: bodyPartColors.rightKnee,
+      [POSE_LANDMARKS.LEFT_ANKLE]: bodyPartColors.leftAnkle,
+      [POSE_LANDMARKS.RIGHT_ANKLE]: bodyPartColors.rightAnkle
+    }
 
-    keyPoints.forEach((index) => {
+    // Disegna i punti salienti con effetti avanzati
+    Object.entries(landmarkColorMap).forEach(([indexStr, color]) => {
+      const index = parseInt(indexStr)
       const landmark = landmarks[index]
+      
       if (landmark && (landmark.visibility || 0) > config.MIN_CONFIDENCE) {
         const x = landmark.x * width
         const y = landmark.y * height
         
-        // Color based on body part
-        let color = colors.torso
-        if (index === POSE_LANDMARKS.NOSE) color = colors.face
-        else if ([POSE_LANDMARKS.LEFT_SHOULDER, POSE_LANDMARKS.LEFT_ELBOW, POSE_LANDMARKS.LEFT_WRIST].includes(index)) color = colors.leftArm
-        else if ([POSE_LANDMARKS.RIGHT_SHOULDER, POSE_LANDMARKS.RIGHT_ELBOW, POSE_LANDMARKS.RIGHT_WRIST].includes(index)) color = colors.rightArm
-        else if ([POSE_LANDMARKS.LEFT_HIP, POSE_LANDMARKS.LEFT_KNEE, POSE_LANDMARKS.LEFT_ANKLE].includes(index)) color = colors.leftLeg
-        else if ([POSE_LANDMARKS.RIGHT_HIP, POSE_LANDMARKS.RIGHT_KNEE, POSE_LANDMARKS.RIGHT_ANKLE].includes(index)) color = colors.rightLeg
-        
-        // Draw point with glow effect
+        // Effetto glow esterno
         ctx.shadowColor = color
-        ctx.shadowBlur = 10
+        ctx.shadowBlur = glowRadius
+        
+        // Cerchio esterno (alone)
+        ctx.fillStyle = color.replace(alpha.toString(), (alpha * 0.3).toString())
+        ctx.beginPath()
+        ctx.arc(x, y, pointRadius + 3, 0, 2 * Math.PI)
+        ctx.fill()
+        
+        // Cerchio principale
         ctx.fillStyle = color
         ctx.beginPath()
         ctx.arc(x, y, pointRadius, 0, 2 * Math.PI)
         ctx.fill()
+        
+        // Cerchio interno (highlight)
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)'
+        ctx.beginPath()
+        ctx.arc(x, y, pointRadius * 0.4, 0, 2 * Math.PI)
+        ctx.fill()
+        
+        // Reset shadow
         ctx.shadowBlur = 0
+        
+        // Etichetta per punti importanti (opzionale, solo per articolazioni principali)
+        if ([POSE_LANDMARKS.LEFT_SHOULDER, POSE_LANDMARKS.RIGHT_SHOULDER,
+             POSE_LANDMARKS.LEFT_ELBOW, POSE_LANDMARKS.RIGHT_ELBOW,
+             POSE_LANDMARKS.LEFT_WRIST, POSE_LANDMARKS.RIGHT_WRIST,
+             POSE_LANDMARKS.LEFT_HIP, POSE_LANDMARKS.RIGHT_HIP,
+             POSE_LANDMARKS.LEFT_KNEE, POSE_LANDMARKS.RIGHT_KNEE,
+             POSE_LANDMARKS.LEFT_ANKLE, POSE_LANDMARKS.RIGHT_ANKLE].includes(index)) {
+          
+          // Piccolo indicatore di confidenza
+          const confidenceBar = (landmark.visibility || 0) * 20
+          ctx.fillStyle = `rgba(255, 255, 255, 0.8)`
+          ctx.fillRect(x - 10, y - pointRadius - 8, confidenceBar, 2)
+        }
       }
     })
   }, [getPerformanceConfig])
 
-  // Optimized frame processing con recording
+  // Optimized frame processing - BILANCIATO per fluidità video
   const processFrame = useCallback(async () => {
     if (!videoElement || !poseDetectorRef.current || !canvasRef.current || !isDetecting) {
       return
@@ -290,7 +365,7 @@ export function PoseDetection({
     const config = getPerformanceConfig()
     const frameInterval = 1000 / config.TARGET_FPS
 
-    // Frame rate limiting
+    // Frame rate limiting per non sovraccaricare il browser
     if (now - lastFrameTimeRef.current < frameInterval) {
       animationFrameRef.current = requestAnimationFrame(processFrame)
       return
@@ -360,16 +435,17 @@ export function PoseDetection({
             ? visibilityScores.reduce((a: number, b: number) => a + b, 0) / visibilityScores.length
             : 0
 
-          // Throttled drawing
+          // Throttled drawing per performance
           drawingCountRef.current++
           if (drawingCountRef.current % config.DRAWING_THROTTLE === 0) {
             drawPoseLandmarksOptimized(ctx, landmarks, canvas.width, canvas.height, avgConfidence)
           }
 
-          // Update stats
+          // Update stats - OTTIMIZZATO
           frameCountRef.current++
-          if (now - lastFrameTimeRef.current >= PERFORMANCE_SETTINGS.STATS_UPDATE_INTERVAL) {
-            const fps = Math.round((frameCountRef.current * 1000) / (now - lastFrameTimeRef.current))
+          if (frameCountRef.current % 30 === 0) { // Aggiorna stats ogni 30 frame invece che ogni secondo
+            const timeDiff = now - lastFrameTimeRef.current
+            const fps = timeDiff > 0 ? Math.round((30 * 1000) / timeDiff) : 0
             setStats(prev => ({
               fps,
               detectionTime: Math.round(detectionTime * 10) / 10,
@@ -377,7 +453,6 @@ export function PoseDetection({
               averageConfidence: Math.round(avgConfidence * 1000) / 10,
               droppedFrames: prev.droppedFrames
             }))
-            frameCountRef.current = 0
             lastFrameTimeRef.current = now
           }
 
@@ -388,7 +463,8 @@ export function PoseDetection({
             segmentationMasks: resultsObj.segmentationMasks
           }
 
-          if (drawingCountRef.current % 3 === 0) {
+          // Throttled callback per ridurre overhead
+          if (drawingCountRef.current % config.DRAWING_THROTTLE === 0) {
             onPoseDetected?.(detectionResult)
           }
 
@@ -504,7 +580,7 @@ export function PoseDetection({
   }, [shouldUseRecording, recording?.error])
 
   return (
-    <Card>
+    <Card className="border-0" style={{ border: 'none !important', outline: 'none !important' }}>
       <CardHeader>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -514,10 +590,11 @@ export function PoseDetection({
           
           <div className="flex items-center gap-2">
             {/* Performance Mode */}
-            <select 
+            <select
               value={performanceMode}
               onChange={(e) => setPerformanceMode(e.target.value as 'high' | 'balanced' | 'fast')}
-              className="text-xs px-2 py-1 border rounded"
+              className="text-xs px-2 py-1 rounded border-0"
+              style={{ border: 'none !important', outline: 'none !important', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}
               disabled={recording?.isRecording}
             >
               <option value="high">High Quality</option>
@@ -534,13 +611,13 @@ export function PoseDetection({
             )}
 
             {/* Status Badge */}
-            <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-              isDetecting 
-                ? 'bg-green-100 text-green-800 border border-green-200' 
+            <div className={`px-2 py-1 rounded-full text-xs font-medium border-0 ${
+              isDetecting
+                ? 'bg-green-100 text-green-800'
                 : isInitialized
-                ? 'bg-yellow-100 text-yellow-800 border border-yellow-200'
-                : 'bg-gray-100 text-gray-800 border border-gray-200'
-            }`}>
+                ? 'bg-yellow-100 text-yellow-800'
+                : 'bg-gray-100 text-gray-800'
+            }`} style={{ border: 'none !important', outline: 'none !important' }}>
               {isDetecting ? (
                 <>
                   <Zap className="h-3 w-3 mr-1 inline" />
@@ -620,7 +697,7 @@ export function PoseDetection({
             {/* Real-time Metrics (se recording attivo) */}
             {shouldUseRecording && recording?.isRecording && recording.currentMetrics && (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
-                <Card className="p-3">
+                <Card className="p-3 border-0" style={{ border: 'none !important', outline: 'none !important' }}>
                   <div className="flex items-center justify-between mb-1">
                     <h5 className="text-xs font-medium">ROM Spalla</h5>
                     <BarChart className="h-3 w-3 text-muted-foreground" />
@@ -634,7 +711,7 @@ export function PoseDetection({
                   </div>
                 </Card>
 
-                <Card className="p-3">
+                <Card className="p-3 border-0" style={{ border: 'none !important', outline: 'none !important' }}>
                   <div className="flex items-center justify-between mb-1">
                     <h5 className="text-xs font-medium">Velocità</h5>
                     <Zap className="h-3 w-3 text-muted-foreground" />
@@ -645,7 +722,7 @@ export function PoseDetection({
                   <div className="text-xs text-muted-foreground">px/s</div>
                 </Card>
 
-                <Card className="p-3">
+                <Card className="p-3 border-0" style={{ border: 'none !important', outline: 'none !important' }}>
                   <div className="flex items-center justify-between mb-1">
                     <h5 className="text-xs font-medium">Stabilità</h5>
                     <Target className="h-3 w-3 text-muted-foreground" />
@@ -656,7 +733,7 @@ export function PoseDetection({
                   <Progress value={recording.currentMetrics.stability.balanceScore} className="h-1 mt-1" />
                 </Card>
 
-                <Card className="p-3">
+                <Card className="p-3 border-0" style={{ border: 'none !important', outline: 'none !important' }}>
                   <div className="flex items-center justify-between mb-1">
                     <h5 className="text-xs font-medium">Simmetria</h5>
                     <Activity className="h-3 w-3 text-muted-foreground" />
