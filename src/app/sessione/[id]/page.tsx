@@ -1,16 +1,33 @@
-// src/app/sessione/[id]/page.tsx
 'use client'
 
-import { useParams } from 'next/navigation'
+import { useParams, useSearchParams } from 'next/navigation'
+import { Suspense } from 'react'
+import PatientView from '@/components/session/PatientView'
+import TherapistView from '@/components/session/TherapistView'
+
+function SessionContent() {
+  const params = useParams()
+  const searchParams = useSearchParams()
+  const sessionId = params.id as string
+  const mode = searchParams.get('mode') || 'therapist'
+
+  // Vista paziente: fullscreen, semplice, mirror
+  if (mode === 'patient') {
+    return <PatientView sessionId={sessionId} />
+  }
+
+  // Vista fisioterapista: split-screen con controlli
+  return <TherapistView sessionId={sessionId} />
+}
 
 export default function SessionePage() {
-  const params = useParams()
-  const sessionId = params.id as string
-
   return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Sessione {sessionId}</h1>
-      <p>Pagina della sessione in sviluppo...</p>
-    </div>
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-lg">Caricamento sessione...</div>
+      </div>
+    }>
+      <SessionContent />
+    </Suspense>
   )
 }

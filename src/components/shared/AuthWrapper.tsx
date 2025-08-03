@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import { User } from '@supabase/auth-helpers-nextjs'
+import type { User } from '@supabase/supabase-js'
 import { AuthService } from '@/lib/supabase/auth'
 import { Profilo } from '@/types/database'
 import { Navbar } from './Navbar'
@@ -37,8 +37,8 @@ export function AuthWrapper({ children }: AuthWrapperProps) {
         
         // Carica configurazioni durante l'auth
         const configResult = await AuthService.caricaConfigurazioni()
-        if (configResult.success) {
-          setConfigurazioni(configResult.configurazioni)
+        if (configResult.success && configResult.configurazioni) {
+          setConfigurazioni(configResult.configurazioni as Record<string, Record<string, unknown>>)
           // Salva in localStorage per accesso rapido (solo lato client)
           if (typeof window !== 'undefined') {
             localStorage.setItem('physio_config', JSON.stringify(configResult.configurazioni))
