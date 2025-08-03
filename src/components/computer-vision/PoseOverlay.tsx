@@ -14,8 +14,6 @@ interface PoseOverlayProps {
   videoElement: HTMLVideoElement | null
   confidence: number
   className?: string
-  mirrorMode?: boolean // Per gestire l'effetto specchio
-  flipLandmarks?: boolean // Per invertire coordinate X quando video non è specchiato
 }
 
 // MediaPipe Pose landmark indices
@@ -35,7 +33,7 @@ const POSE_LANDMARKS = {
   RIGHT_ANKLE: 28
 }
 
-export function PoseOverlay({ landmarks, videoElement, confidence, className = '', mirrorMode = false, flipLandmarks = false }: PoseOverlayProps) {
+export function PoseOverlay({ landmarks, videoElement, confidence, className = '' }: PoseOverlayProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const animationFrameRef = useRef<number | undefined>(undefined)
   const lastRenderTimeRef = useRef<number>(0)
@@ -55,44 +53,25 @@ export function PoseOverlay({ landmarks, videoElement, confidence, className = '
       return
     }
 
-    // Inverti coordinate X se necessario (per video non-specchiato con landmarks specchiati)
-    const processedLandmarks = flipLandmarks
-      ? landmarks.map(landmark => ({
-          ...landmark,
-          x: 1 - landmark.x // Inverti coordinata X
-        }))
-      : landmarks
+    // Usa landmarks originali senza modifiche
+    const processedLandmarks = landmarks
 
     const canvas = canvasRef.current
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    // Sincronizzazione PERFETTA canvas-video con gestione mirror
+    // Sincronizza dimensioni canvas con video
     const rect = videoElement.getBoundingClientRect()
-    const videoWidth = videoElement.videoWidth || rect.width
-    const videoHeight = videoElement.videoHeight || rect.height
-    
-    // Forza le dimensioni esatte del video visualizzato
     canvas.width = rect.width
     canvas.height = rect.height
-    canvas.style.width = `${rect.width}px`
-    canvas.style.height = `${rect.height}px`
-    
-    // Applica trasformazione mirror se necessario
-    if (mirrorMode) {
-      ctx.save()
-      ctx.scale(-1, 1)
-      ctx.translate(-canvas.width, 0)
-    }
 
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height)
 
-    // Ridotti per performance
     const alpha = Math.max(0.7, confidence)
     const pointRadius = confidence > 0.8 ? 8 : 6
-    const lineWidth = confidence > 0.8 ? 3 : 2
-    const glowRadius = confidence > 0.8 ? 12 : 8
+    const lineWidth = confidence > 0.8 ? 4 : 3
+    const glowRadius = confidence > 0.8 ? 15 : 12
 
     // Colori vivaci per ogni parte del corpo
     const bodyPartColors = {
@@ -132,20 +111,18 @@ export function PoseOverlay({ landmarks, videoElement, confidence, className = '
     ctx.lineWidth = lineWidth
     ctx.lineCap = 'round'
     connections.forEach(({ start, end, color }) => {
-      const startLandmark = processedLandmarks[start]
-      const endLandmark = processedLandmarks[end]
+      const startLandmark = landmarks[start]
+      const endLandmark = landmarks[end]
       
       if (startLandmark && endLandmark &&
           (startLandmark.visibility || 0) > 0.5 &&
           (endLandmark.visibility || 0) > 0.5) {
         
-        // Calcolo coordinate con compensazione mirror
-        const startX = startLandmark.x * canvas.width
-        const startY = startLandmark.y * canvas.height
-        const endX = endLandmark.x * canvas.width
-        const endY = endLandmark.y * canvas.height
+        const gradient = ctx.createLinearGradient(
+          startLandmark.x * canvas.width, startLandmark.y * canvas.height,
+          endLandmark.x * canvas.width, endLandmark.y * canvas.height
+        )
         
-        const gradient = ctx.createLinearGradient(startX, startY, endX, endY)
         gradient.addColorStop(0, color)
         gradient.addColorStop(1, color.replace(alpha.toString(), (alpha * 0.7).toString()))
         
@@ -153,8 +130,8 @@ export function PoseOverlay({ landmarks, videoElement, confidence, className = '
         ctx.shadowColor = color
         ctx.shadowBlur = 3
         ctx.beginPath()
-        ctx.moveTo(startX, startY)
-        ctx.lineTo(endX, endY)
+        ctx.moveTo(startLandmark.x * canvas.width, startLandmark.y * canvas.height)
+        ctx.lineTo(endLandmark.x * canvas.width, endLandmark.y * canvas.height)
         ctx.stroke()
         ctx.shadowBlur = 0
       }
@@ -180,10 +157,9 @@ export function PoseOverlay({ landmarks, videoElement, confidence, className = '
     // Disegna punti salienti
     Object.entries(landmarkColorMap).forEach(([indexStr, color]) => {
       const index = parseInt(indexStr)
-      const landmark = processedLandmarks[index]
+      const landmark = landmarks[index]
       
       if (landmark && (landmark.visibility || 0) > 0.5) {
-        // Calcolo coordinate con compensazione mirror
         const x = landmark.x * canvas.width
         const y = landmark.y * canvas.height
         
@@ -226,44 +202,16 @@ export function PoseOverlay({ landmarks, videoElement, confidence, className = '
       }
     })
     
-    // Ripristina trasformazione se mirror mode
-    if (mirrorMode) {
-      ctx.restore()
-    }
-  }, [landmarks, videoElement, confidence, mirrorMode, flipLandmarks])
+  }, [landmarks, videoElement, confidence])
 
-  // Ridisegna con throttling per performance
+  // Ridisegna quando cambiano i landmarks
   useEffect(() => {
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current)
-    }
-    
-    // Debounce per evitare troppi re-render
-    const timeoutId = setTimeout(() => {
-      animationFrameRef.current = requestAnimationFrame(() => {
-        drawPoseLandmarks()
-      })
-    }, 16) // ~60 FPS max
-    
-    return () => {
-      clearTimeout(timeoutId)
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current)
-      }
-    }
+    drawPoseLandmarks()
   }, [drawPoseLandmarks])
 
   // Ridisegna quando la finestra viene ridimensionata
   useEffect(() => {
-    const handleResize = () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current)
-      }
-      animationFrameRef.current = requestAnimationFrame(() => {
-        drawPoseLandmarks()
-      })
-    }
-    
+    const handleResize = () => drawPoseLandmarks()
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
   }, [drawPoseLandmarks])
@@ -272,7 +220,10 @@ export function PoseOverlay({ landmarks, videoElement, confidence, className = '
     <canvas
       ref={canvasRef}
       className={`absolute inset-0 w-full h-full pointer-events-none ${className}`}
-      style={{ zIndex: 20 }}
+      style={{
+        zIndex: 20,
+        transform: className?.includes('therapist-overlay') ? 'scaleX(-1)' : 'none'
+      }}
     />
   )
 }

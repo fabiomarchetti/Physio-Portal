@@ -29,14 +29,14 @@ export function ClientProvider({ children }: ClientProviderProps) {
   const paginePubbliche = ['/', '/login', '/register']
   const isPaginaPubblica = paginePubbliche.includes(pathname)
 
-  // MODALITÀ SVILUPPATORE: Bypass per /sessione
+  // MODALITÀ SVILUPPATORE: Bypass per /sessione e /test-landmarks
   const isDevMode = process.env.NODE_ENV === 'development'
-  const isSessionePage = pathname.startsWith('/sessione')
+  const isSessionePage = pathname.startsWith('/sessione') || pathname.startsWith('/test-landmarks')
 
   useEffect(() => {
-    // MODALITÀ DEV: Bypass completo per /sessione
+    // MODALITÀ DEV: Bypass completo per /sessione e /test-landmarks
     if (isDevMode && isSessionePage) {
-      console.log('🔧 DEV MODE: Bypassing auth for sessione page')
+      console.log('🔧 DEV MODE: Bypassing auth for sessione/test page')
       setLoading(false)
       return
     }

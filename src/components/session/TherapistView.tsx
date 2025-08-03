@@ -64,9 +64,10 @@ export default function TherapistView({ sessionId }: TherapistViewProps) {
   const handlePoseDetected = (result: PoseDetectionResult) => {
     // Aggiorna lo stato con i nuovi dati pose per la visualizzazione
     setCurrentPose(result)
-    console.log('🎯 Pose detected in therapist view:', {
+    console.log('🎯 THERAPIST VIEW - Pose detected (CACHE REFRESH):', {
       landmarksCount: result.landmarks?.length || 0,
-      confidence: result.landmarks ? result.landmarks.reduce((acc, landmark) => acc + (landmark.visibility || 0), 0) / result.landmarks.length : 0
+      confidence: result.landmarks ? result.landmarks.reduce((acc, landmark) => acc + (landmark.visibility || 0), 0) / result.landmarks.length : 0,
+      firstLandmark: result.landmarks?.[0] ? { x: result.landmarks[0].x, y: result.landmarks[0].y } : null
     })
   }
 
@@ -241,31 +242,36 @@ export default function TherapistView({ sessionId }: TherapistViewProps) {
           {/* Video element diretto per il fisioterapista */}
           <video
             ref={(video) => {
-              if (video && !videoElement && screenInfo.width > 0) {
-                // Avvia webcam con impostazioni ottimali
-                const videoSettings = getOptimalVideoSettings()
+              if (video && !videoElement) {
+                console.log('🎥 Inizializzazione webcam therapist...')
+                // Avvia webcam immediatamente come nella vista paziente
                 navigator.mediaDevices.getUserMedia({
-                  video: videoSettings,
+                  video: {
+                    facingMode: 'user',
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                  },
                   audio: false
                 }).then(stream => {
                   video.srcObject = stream
                   video.play()
                   setVideoElement(video)
                   setMediaStream(stream)
-                  console.log('📹 Therapist webcam con impostazioni:', videoSettings)
+                  console.log('✅ Webcam therapist avviata!')
                 }).catch(err => {
-                  console.error('Webcam error:', err)
-                  // Fallback
+                  console.error('❌ Errore webcam therapist:', err)
+                  // Fallback con impostazioni minime
                   navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: 'user' },
+                    video: true,
                     audio: false
                   }).then(stream => {
                     video.srcObject = stream
                     video.play()
                     setVideoElement(video)
                     setMediaStream(stream)
+                    console.log('✅ Webcam therapist avviata (fallback)')
                   }).catch(fallbackErr => {
-                    console.error('Webcam fallback error:', fallbackErr)
+                    console.error('❌ Errore fallback webcam therapist:', fallbackErr)
                   })
                 })
               }
@@ -274,7 +280,7 @@ export default function TherapistView({ sessionId }: TherapistViewProps) {
             autoPlay
             muted
             playsInline
-            style={{ zIndex: 1 }}
+            style={{ transform: 'scaleX(-1)', zIndex: 1 }}
           />
 
           {/* Pose detection (nascosto) + Overlay visibile */}
@@ -293,15 +299,13 @@ export default function TherapistView({ sessionId }: TherapistViewProps) {
                 />
               </div>
               
-              {/* Overlay visibile con punti colorati */}
+              {/* Overlay visibile con punti colorati - CACHE REFRESH */}
               {currentPose && currentPose.landmarks && (
                 <PoseOverlay
                   landmarks={currentPose.landmarks}
                   videoElement={videoElement}
                   confidence={currentPose.landmarks.reduce((acc, landmark) => acc + (landmark.visibility || 0), 0) / currentPose.landmarks.length}
-                  className="pose-overlay"
-                  mirrorMode={false}
-                  flipLandmarks={true}
+                  className="pose-overlay therapist-overlay"
                 />
               )}
             </>
