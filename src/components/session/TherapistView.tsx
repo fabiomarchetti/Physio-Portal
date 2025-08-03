@@ -96,28 +96,26 @@ export default function TherapistView({ sessionId }: TherapistViewProps) {
 
         {/* Area video */}
         <div className="h-full relative">
-          {/* Webcam capture nascosta */}
-          <div className="absolute -top-full opacity-0 pointer-events-none">
+          {/* Webcam capture visibile per il fisioterapista */}
+          <div className="h-full">
             <WebcamCapture
               onVideoReady={setVideoElement}
               onError={(error) => console.error('Webcam error:', error)}
             />
           </div>
 
-          {/* Pose detection con tutti i landmark visibili */}
+          {/* Pose detection overlay con tutti i landmark visibili */}
           {videoElement && (
-            <div className="h-full">
-              <div className="pose-landmarks">
-                <PoseDetection
-                  videoElement={videoElement}
-                  onPoseDetected={handlePoseDetected}
-                  isActive={isSessionActive}
-                  enableRecording={true}
-                  pazienteId="patient-123" // Sarà dinamico
-                  tipoEsercizio={currentExercise}
-                  obiettivi="Miglioramento mobilità spalla destra"
-                />
-              </div>
+            <div className="absolute inset-0 h-full pose-landmarks">
+              <PoseDetection
+                videoElement={videoElement}
+                onPoseDetected={handlePoseDetected}
+                isActive={isSessionActive}
+                enableRecording={true}
+                pazienteId="patient-123" // Sarà dinamico
+                tipoEsercizio={currentExercise}
+                obiettivi="Miglioramento mobilità spalla destra"
+              />
             </div>
           )}
         </div>

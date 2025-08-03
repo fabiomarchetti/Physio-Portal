@@ -109,22 +109,25 @@ export default function TestSessionPage() {
                 <h3 className="font-semibold mb-3">Setup Consigliato:</h3>
                 <ol className="text-sm space-y-2">
                   <li><strong>1.</strong> Apri prima la vista fisioterapista</li>
-                  <li><strong>2.</strong> Apri la vista paziente in una nuova scheda</li>
-                  <li><strong>3.</strong> Trascina la scheda paziente sul secondo monitor</li>
-                  <li><strong>4.</strong> Metti la vista paziente a schermo intero (F11)</li>
-                  <li><strong>5.</strong> Torna alla vista fisioterapista per i controlli</li>
+                  <li><strong>2.</strong> Consenti l&apos;accesso alla webcam quando richiesto</li>
+                  <li><strong>3.</strong> Apri la vista paziente in una nuova scheda</li>
+                  <li><strong>4.</strong> Trascina la scheda paziente sul secondo monitor</li>
+                  <li><strong>5.</strong> Clicca &quot;Attiva Schermo Intero&quot; nella vista paziente</li>
+                  <li><strong>6.</strong> Torna alla vista fisioterapista per i controlli</li>
                 </ol>
               </div>
               
               <div>
                 <h3 className="font-semibold mb-3">Cosa Testare:</h3>
                 <ul className="text-sm space-y-2">
+                  <li>• ✅ Webcam si avvia nella vista fisioterapista</li>
+                  <li>• ✅ Vista paziente occupa tutto lo schermo</li>
+                  <li>• ✅ Effetto specchio funziona per il paziente</li>
                   <li>• Avvio/pausa della sessione</li>
                   <li>• Cambio esercizi dal pannello fisioterapista</li>
-                  <li>• Invio feedback al paziente</li>
+                  <li>• Invio feedback al paziente (bottoni colorati)</li>
                   <li>• Visualizzazione landmark pose detection</li>
-                  <li>• Metriche real-time</li>
-                  <li>• Responsività delle interfacce</li>
+                  <li>• Metriche real-time nel pannello analytics</li>
                 </ul>
               </div>
             </div>

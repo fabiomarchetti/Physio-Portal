@@ -72,19 +72,28 @@
 /* Vista Paziente - Ottimizzazioni Fullscreen */
 .patient-view {
   /* Nasconde scrollbar e ottimizza per fullscreen */
-  overflow: hidden;
+  overflow: hidden !important;
   user-select: none;
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 9999;
 }
 
 .patient-view canvas {
   /* Ottimizzazione canvas per schermi grandi */
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
   width: 100vw !important;
   height: 100vh !important;
-  object-fit: cover;
-  transform: scaleX(-1); /* Effetto specchio */
+  object-fit: cover !important;
+  transform: scaleX(-1) !important; /* Effetto specchio */
   image-rendering: auto;
   image-rendering: crisp-edges;
   image-rendering: -webkit-optimize-contrast;
@@ -135,8 +144,14 @@
 .therapist-video-panel canvas {
   width: 100% !important;
   height: 100% !important;
-  object-fit: cover;
+  object-fit: cover !important;
   /* Non specchiamo il video per il fisioterapista - vista naturale */
+}
+
+.therapist-video-panel video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
 }
 
 .therapist-controls-panel {

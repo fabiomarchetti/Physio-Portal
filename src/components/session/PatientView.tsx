@@ -19,6 +19,7 @@ export default function PatientView({ sessionId }: PatientViewProps) {
   const [currentExercise, setCurrentExercise] = useState<string>('In attesa di istruzioni...')
   const [feedback, setFeedback] = useState<string>('')
   const [feedbackColor, setFeedbackColor] = useState<'green' | 'yellow' | 'red'>('green')
+  const [isFullscreen, setIsFullscreen] = useState(false)
 
   // Simula feedback real-time (poi sarà sostituito con WebSocket)
   useEffect(() => {
@@ -43,8 +44,39 @@ export default function PatientView({ sessionId }: PatientViewProps) {
     console.log('Pose detected in patient view:', result)
   }
 
+  // Funzione per attivare fullscreen
+  const enterFullscreen = () => {
+    const element = document.documentElement as HTMLElement & {
+      webkitRequestFullscreen?: () => Promise<void>
+      msRequestFullscreen?: () => Promise<void>
+    }
+    
+    if (element.requestFullscreen) {
+      element.requestFullscreen()
+    } else if (element.webkitRequestFullscreen) {
+      element.webkitRequestFullscreen()
+    } else if (element.msRequestFullscreen) {
+      element.msRequestFullscreen()
+    }
+  }
+
+  // Monitora lo stato fullscreen
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement)
+    }
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange)
+    
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange)
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange)
+    }
+  }, [])
+
   return (
-    <div className="fixed inset-0 bg-black flex flex-col patient-view gpu-accelerated">
+    <div className="fixed inset-0 bg-black patient-view gpu-accelerated" style={{ width: '100vw', height: '100vh', overflow: 'hidden' }}>
       {/* Header con istruzioni - sempre visibile */}
       <div className="absolute top-0 left-0 right-0 z-20 bg-gradient-to-b from-black/80 to-transparent p-6">
         <div className="text-center">
@@ -58,7 +90,7 @@ export default function PatientView({ sessionId }: PatientViewProps) {
       </div>
 
       {/* Area video principale - fullscreen */}
-      <div className="flex-1 relative">
+      <div className="absolute inset-0 w-full h-full">
         {/* Webcam capture nascosta */}
         <div className="absolute -top-full opacity-0 pointer-events-none">
           <WebcamCapture
@@ -69,7 +101,7 @@ export default function PatientView({ sessionId }: PatientViewProps) {
 
         {/* Pose detection con overlay fullscreen */}
         {videoElement && (
-          <div className="absolute inset-0">
+          <div className="absolute inset-0 w-full h-full">
             <PoseDetection
               videoElement={videoElement}
               onPoseDetected={handlePoseDetected}
@@ -116,12 +148,20 @@ export default function PatientView({ sessionId }: PatientViewProps) {
         </div>
       </div>
 
-      {/* Istruzioni per il paziente - se necessario */}
+      {/* Istruzioni per il paziente + Pulsante Fullscreen */}
       <div className="absolute bottom-20 left-6 z-20">
         <div className="bg-black/50 rounded-lg p-4 max-w-sm">
-          <p className="text-white text-sm">
+          <p className="text-white text-sm mb-3">
             💡 <strong>Suggerimento:</strong> Posizionati al centro dello schermo e segui le istruzioni del fisioterapista
           </p>
+          {!isFullscreen && (
+            <button
+              onClick={enterFullscreen}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+            >
+              📺 Attiva Schermo Intero
+            </button>
+          )}
         </div>
       </div>
     </div>
