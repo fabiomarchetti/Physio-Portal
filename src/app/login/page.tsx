@@ -26,7 +26,8 @@ export default function LoginPage() {
       if (!success || error) {
         setError('Errore durante il login')
       } else {
-        router.push('/dashboard')
+        // Reindirizza a complete-profile che controllerà se il profilo esiste
+        router.push('/complete-profile')
       }
     } catch (err) {
       setError('Errore durante il login')
@@ -83,11 +84,21 @@ export default function LoginPage() {
               {loading ? 'Accesso in corso...' : 'Accedi'}
             </Button>
           </form>
+          
+          <div className="mt-4 text-center">
+            <Link
+              href="/forgot-password"
+              className="text-sm font-medium text-blue-600 hover:text-blue-500"
+            >
+              Password dimenticata?
+            </Link>
+          </div>
+
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">
               Non hai un account?{' '}
-              <Link 
-                href="/register" 
+              <Link
+                href="/register"
                 className="font-medium text-blue-600 hover:text-blue-500"
               >
                 Registrati qui

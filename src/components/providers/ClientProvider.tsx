@@ -26,12 +26,12 @@ export function ClientProvider({ children }: ClientProviderProps) {
   const pathname = usePathname()
 
   // Pagine pubbliche che non richiedono autenticazione
-  const paginePubbliche = ['/', '/login', '/register']
+  const paginePubbliche = ['/', '/login', '/register', '/complete-profile', '/forgot-password', '/reset-password']
   const isPaginaPubblica = paginePubbliche.includes(pathname)
 
-  // MODALITÀ SVILUPPATORE: Bypass per /sessione e /test-landmarks
+  // MODALITÀ SVILUPPATORE: Bypass per /sessione, /test-landmarks e /test-auth
   const isDevMode = process.env.NODE_ENV === 'development'
-  const isSessionePage = pathname.startsWith('/sessione') || pathname.startsWith('/test-landmarks')
+  const isSessionePage = pathname.startsWith('/sessione') || pathname.startsWith('/test-landmarks') || pathname.startsWith('/test-auth')
 
   useEffect(() => {
     // MODALITÀ DEV: Bypass completo per /sessione e /test-landmarks
