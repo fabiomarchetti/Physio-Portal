@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -14,14 +14,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { 
-  User, 
-  LogOut, 
-  Settings, 
+import {
+  User,
+  LogOut,
+  Settings,
   Activity,
   Heart,
   Menu,
-  X
+  X,
+  ArrowLeft
 } from 'lucide-react'
 import { AuthService } from '@/lib/supabase/auth'
 import { Profilo } from '@/types/database'
@@ -35,6 +36,30 @@ interface NavbarProps {
 export function Navbar({ utente, profilo }: NavbarProps) {
   const router = useRouter()
   const [menuAperto, setMenuAperto] = useState(false)
+
+  // Mostra il pulsante "Torna agli Esercizi" alla SINISTRA del logo
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const categoriaId = searchParams?.get('categoria')
+  const showBackToEsercizi =
+    pathname?.startsWith('/dashboard/fisioterapista/nuovo-esercizio')
+
+  const handleBackToEsercizi = () => {
+    const cat = categoriaId || undefined
+    const target = cat
+      ? `/dashboard/fisioterapista/esercizi?categoria=${cat}`
+      : '/dashboard/fisioterapista/esercizi'
+
+    // Se siamo già nella lista esercizi: esegui comunque push e refresh per dare feedback visivo
+    if (pathname?.startsWith('/dashboard/fisioterapista/esercizi')) {
+      router.push(target)
+      router.refresh()
+      return
+    }
+
+    // Altrimenti vai sempre alla lista esercizi (stessa categoria se disponibile)
+    router.push(target)
+  }
 
   const handleLogout = async () => {
     const result = await AuthService.logout()
@@ -66,6 +91,17 @@ export function Navbar({ utente, profilo }: NavbarProps) {
         <div className="flex justify-between h-16">
           {/* Logo */}
           <div className="flex items-center">
+            {showBackToEsercizi && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleBackToEsercizi}
+                className="mr-3"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Torna agli Esercizi
+              </Button>
+            )}
             <Link href="/" className="flex items-center space-x-2">
               <Heart className="h-8 w-8 text-blue-600" />
               <span className="font-bold text-xl text-gray-900">

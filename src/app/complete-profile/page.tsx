@@ -57,8 +57,14 @@ export default function CompleteProfilePage() {
         .single()
 
       if (profilo) {
-        // Profilo già esistente, vai alla dashboard
-        router.push('/dashboard')
+        // Profilo già esistente, vai alla dashboard specifica
+        if (profilo.ruolo === 'fisioterapista') {
+          router.push('/dashboard/fisioterapista')
+        } else if (profilo.ruolo === 'paziente') {
+          router.push('/dashboard/paziente')
+        } else {
+          router.push('/dashboard')
+        }
         return
       }
 
@@ -87,12 +93,11 @@ export default function CompleteProfilePage() {
       return
     }
 
-    if (formData.ruolo === 'fisioterapista') {
-      if (!formData.numero_albo.trim() || !formData.specializzazione.trim() || 
-          !formData.nome_clinica.trim() || !formData.indirizzo_clinica.trim()) {
-        setError('Tutti i campi del fisioterapista sono obbligatori')
-        return
-      }
+    // Validazione campi fisioterapista (sempre richiesti)
+    if (!formData.numero_albo.trim() || !formData.specializzazione.trim() || 
+        !formData.nome_clinica.trim() || !formData.indirizzo_clinica.trim()) {
+      setError('Tutti i campi professionali sono obbligatori')
+      return
     }
 
     setSubmitting(true)
@@ -121,32 +126,37 @@ export default function CompleteProfilePage() {
       }
       console.log('✅ Profilo inserito')
 
-      // 2. Se fisioterapista, inserisci dati fisioterapista
-      if (formData.ruolo === 'fisioterapista') {
-        console.log('👨‍⚕️ Inserimento dati fisioterapista...')
-        const { error: fisioError } = await supabase
-          .from('fisioterapisti')
-          .insert({
-            profilo_id: user.id,
-            numero_albo: formData.numero_albo.trim().toUpperCase(),
-            specializzazione: formData.specializzazione.trim(),
-            nome_clinica: formData.nome_clinica.trim(),
-            indirizzo_clinica: formData.indirizzo_clinica.trim(),
-            telefono: formData.telefono.trim() || null,
-            email_clinica: formData.email_clinica.trim() || null
-          })
+      // 2. Inserisci dati fisioterapista
+      console.log('👨‍⚕️ Inserimento dati fisioterapista...')
+      const { error: fisioError } = await supabase
+        .from('fisioterapisti')
+        .insert({
+          profilo_id: user.id,
+          numero_albo: formData.numero_albo.trim().toUpperCase(),
+          specializzazione: formData.specializzazione.trim(),
+          nome_clinica: formData.nome_clinica.trim(),
+          indirizzo_clinica: formData.indirizzo_clinica.trim(),
+          telefono: formData.telefono.trim() || null,
+          email_clinica: formData.email_clinica.trim() || null
+        })
 
-        if (fisioError) {
-          console.error('❌ Errore fisioterapista:', fisioError)
-          throw fisioError
-        }
-        console.log('✅ Dati fisioterapista inseriti')
+      if (fisioError) {
+        console.error('❌ Errore fisioterapista:', fisioError)
+        throw fisioError
       }
+      console.log('✅ Dati fisioterapista inseriti')
 
       console.log('🎉 Completamento profilo riuscito!')
       setSuccess(true)
       setTimeout(() => {
-        router.push('/dashboard')
+        // Reindirizza alla dashboard specifica in base al ruolo
+        if (formData.ruolo === 'fisioterapista') {
+          router.push('/dashboard/fisioterapista')
+        } else if (formData.ruolo === 'paziente') {
+          router.push('/dashboard/paziente')
+        } else {
+          router.push('/dashboard')
+        }
       }, 2000)
 
     } catch (err) {
@@ -220,30 +230,16 @@ export default function CompleteProfilePage() {
                 </div>
               </div>
 
-              {/* Selezione ruolo */}
-              <div>
-                <Label>Ruolo *</Label>
-                <RadioGroup 
-                  value={formData.ruolo} 
-                  onValueChange={(value: 'fisioterapista' | 'paziente') => 
-                    setFormData(prev => ({ ...prev, ruolo: value }))
-                  }
-                  className="mt-2"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="fisioterapista" id="fisioterapista" />
-                    <Label htmlFor="fisioterapista">Fisioterapista</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="paziente" id="paziente" />
-                    <Label htmlFor="paziente">Paziente</Label>
-                  </div>
-                </RadioGroup>
+              {/* Info ruolo fisioterapista */}
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <Label className="text-blue-800 font-medium">👨‍⚕️ Registrazione Fisioterapista</Label>
+                <p className="text-blue-600 text-sm mt-1">
+                  Completa i dati professionali per accedere al sistema di riabilitazione Physio-Portal.
+                </p>
               </div>
 
               {/* Campi fisioterapista */}
-              {formData.ruolo === 'fisioterapista' && (
-                <>
+              <div className="space-y-4">
                   <div>
                     <Label htmlFor="numero_albo">Numero Albo *</Label>
                     <Input
@@ -309,8 +305,7 @@ export default function CompleteProfilePage() {
                       onChange={handleInputChange}
                     />
                   </div>
-                </>
-              )}
+              </div>
 
               {error && (
                 <Alert variant="destructive">

@@ -1,0 +1,139 @@
+<svg width="400" height="600" viewBox="0 0 400 600" xmlns="http://www.w3.org/2000/svg">
+  <!-- Sfondo -->
+  <rect width="400" height="600" fill="#f8fafc"/>
+  
+  <!-- Testa (cerchio tratteggiato) -->
+  <circle cx="200" cy="80" r="40" fill="none" stroke="#94a3b8" stroke-width="2" stroke-dasharray="5,5"/>
+  
+  <!-- Corpo principale -->
+  <rect x="180" y="120" width="40" height="200" fill="#e2e8f0" stroke="#64748b" stroke-width="2"/>
+  
+  <!-- Braccia -->
+  <rect x="120" y="140" width="60" height="20" fill="#e2e8f0" stroke="#64748b" stroke-width="2"/>
+  <rect x="220" y="140" width="60" height="20" fill="#e2e8f0" stroke="#64748b" stroke-width="2"/>
+  
+  <!-- Gambe -->
+  <rect x="160" y="320" width="30" height="200" fill="#e2e8f0" stroke="#64748b" stroke-width="2"/>
+  <rect x="210" y="320" width="30" height="200" fill="#e2e8f0" stroke="#64748b" stroke-width="2"/>
+  
+  <!-- Landmarks numerati (punti rossi) -->
+  <!-- Testa -->
+  <circle cx="200" cy="60" r="8" fill="#ef4444" stroke="#dc2626" stroke-width="2"/>
+  <text x="200" y="65" text-anchor="middle" fill="white" font-size="10" font-weight="bold">0</text>
+  
+  <circle cx="180" cy="70" r="6" fill="#ef4444" stroke="#dc2626" stroke-width="2"/>
+  <text x="180" y="74" text-anchor="middle" fill="white" font-size="8" font-weight="bold">1</text>
+  
+  <circle cx="190" cy="70" r="6" fill="#ef4444" stroke="#dc2626" stroke-width="2"/>
+  <text x="190" y="74" text-anchor="middle" fill="white" font-size="8" font-weight="bold">2</text>
+  
+  <circle cx="200" cy="70" r="6" fill="#ef4444" stroke="#dc2626" stroke-width="2"/>
+  <text x="200" y="74" text-anchor="middle" fill="white" font-size="8" font-weight="bold">3</text>
+  
+  <circle cx="210" cy="70" r="6" fill="#ef4444" stroke="#dc2626" stroke-width="2"/>
+  <text x="210" y="74" text-anchor="middle" fill="white" font-size="8" font-weight="bold">4</text>
+  
+  <circle cx="220" cy="70" r="6" fill="#ef4444" stroke="#dc2626" stroke-width="2"/>
+  <text x="220" y="74" text-anchor="middle" fill="white" font-size="8" font-weight="bold">5</text>
+  
+  <circle cx="230" cy="70" r="6" fill="#ef4444" stroke="#dc2626" stroke-width="2"/>
+  <text x="230" y="74" text-anchor="middle" fill="white" font-size="8" font-weight="bold">6</text>
+  
+  <circle cx="170" cy="75" r="6" fill="#ef4444" stroke="#dc2626" stroke-width="2"/>
+  <text x="170" y="79" text-anchor="middle" fill="white" font-size="8" font-weight="bold">7</text>
+  
+  <circle cx="230" cy="75" r="6" fill="#ef4444" stroke="#dc2626" stroke-width="2"/>
+  <text x="230" y="79" text-anchor="middle" fill="white" font-size="8" font-weight="bold">8</text>
+  
+  <circle cx="185" cy="85" r="6" fill="#ef4444" stroke="#dc2626" stroke-width="2"/>
+  <text x="185" y="89" text-anchor="middle" fill="white" font-size="8" font-weight="bold">9</text>
+  
+  <circle cx="215" cy="85" r="6" fill="#ef4444" stroke="#dc2626" stroke-width="2"/>
+  <text x="215" y="89" text-anchor="middle" fill="white" font-size="8" font-weight="bold">10</text>
+  
+  <!-- Spalle -->
+  <circle cx="170" cy="130" r="8" fill="#ef4444" stroke="#dc2626" stroke-width="2"/>
+  <text x="170" y="135" text-anchor="middle" fill="white" font-size="10" font-weight="bold">11</text>
+  
+  <circle cx="230" cy="130" r="8" fill="#ef4444" stroke="#dc2626" stroke-width="2"/>
+  <text x="230" y="135" text-anchor="middle" fill="white" font-size="10" font-weight="bold">12</text>
+  
+  <!-- Gomiti -->
+  <circle cx="140" cy="150" r="8" fill="#ef4444" stroke="#dc2626" stroke-width="2"/>
+  <text x="140" y="155" text-anchor="middle" fill="white" font-size="10" font-weight="bold">13</text>
+  
+  <circle cx="260" cy="150" r="8" fill="#ef4444" stroke="#dc2626" stroke-width="2"/>
+  <text x="260" y="155" text-anchor="middle" fill="white" font-size="10" font-weight="bold">14</text>
+  
+  <!-- Polsi -->
+  <circle cx="120" cy="160" r="8" fill="#ef4444" stroke="#dc2626" stroke-width="2"/>
+  <text x="120" y="165" text-anchor="middle" fill="white" font-size="10" font-weight="bold">15</text>
+  
+  <circle cx="280" cy="160" r="8" fill="#ef4444" stroke="#dc2626" stroke-width="2"/>
+  <text x="280" y="165" text-anchor="middle" fill="white" font-size="10" font-weight="bold">16</text>
+  
+  <!-- Mani -->
+  <circle cx="110" cy="170" r="6" fill="#ef4444" stroke="#dc2626" stroke-width="2"/>
+  <text x="110" y="174" text-anchor="middle" fill="white" font-size="8" font-weight="bold">17</text>
+  
+  <circle cx="290" cy="170" r="6" fill="#ef4444" stroke="#dc2626" stroke-width="2"/>
+  <text x="290" y="174" text-anchor="middle" fill="white" font-size="8" font-weight="bold">18</text>
+  
+  <circle cx="105" cy="175" r="6" fill="#ef4444" stroke="#dc2626" stroke-width="2"/>
+  <text x="105" y="179" text-anchor="middle" fill="white" font-size="8" font-weight="bold">19</text>
+  
+  <circle cx="295" cy="175" r="6" fill="#ef4444" stroke="#dc2626" stroke-width="2"/>
+  <text x="295" y="179" text-anchor="middle" fill="white" font-size="8" font-weight="bold">20</text>
+  
+  <circle cx="115" cy="180" r="6" fill="#ef4444" stroke="#dc2626" stroke-width="2"/>
+  <text x="115" y="184" text-anchor="middle" fill="white" font-size="8" font-weight="bold">21</text>
+  
+  <circle cx="285" cy="180" r="6" fill="#ef4444" stroke="#dc2626" stroke-width="2"/>
+  <text x="285" y="184" text-anchor="middle" fill="white" font-size="8" font-weight="bold">22</text>
+  
+  <!-- Anche -->
+  <circle cx="180" cy="320" r="8" fill="#ef4444" stroke="#dc2626" stroke-width="2"/>
+  <text x="180" y="325" text-anchor="middle" fill="white" font-size="10" font-weight="bold">23</text>
+  
+  <circle cx="220" cy="320" r="8" fill="#ef4444" stroke="#dc2626" stroke-width="2"/>
+  <text x="220" y="325" text-anchor="middle" fill="white" font-size="10" font-weight="bold">24</text>
+  
+  <!-- Ginocchia -->
+  <circle cx="175" cy="420" r="8" fill="#ef4444" stroke="#dc2626" stroke-width="2"/>
+  <text x="175" y="425" text-anchor="middle" fill="white" font-size="10" font-weight="bold">25</text>
+  
+  <circle cx="225" cy="420" r="8" fill="#ef4444" stroke="#dc2626" stroke-width="2"/>
+  <text x="225" y="425" text-anchor="middle" fill="white" font-size="10" font-weight="bold">26</text>
+  
+  <!-- Caviglie -->
+  <circle cx="175" cy="520" r="8" fill="#ef4444" stroke="#dc2626" stroke-width="2"/>
+  <text x="175" y="525" text-anchor="middle" fill="white" font-size="10" font-weight="bold">27</text>
+  
+  <circle cx="225" cy="520" r="8" fill="#ef4444" stroke="#dc2626" stroke-width="2"/>
+  <text x="225" y="525" text-anchor="middle" fill="white" font-size="10" font-weight="bold">28</text>
+  
+  <!-- Talloni -->
+  <circle cx="175" cy="560" r="8" fill="#ef4444" stroke="#dc2626" stroke-width="2"/>
+  <text x="175" y="565" text-anchor="middle" fill="white" font-size="10" font-weight="bold">29</text>
+  
+  <circle cx="225" cy="560" r="8" fill="#ef4444" stroke="#dc2626" stroke-width="2"/>
+  <text x="225" y="565" text-anchor="middle" fill="white" font-size="10" font-weight="bold">30</text>
+  
+  <!-- Punte piedi -->
+  <circle cx="175" cy="580" r="8" fill="#ef4444" stroke="#dc2626" stroke-width="2"/>
+  <text x="175" y="585" text-anchor="middle" fill="white" font-size="10" font-weight="bold">31</text>
+  
+  <circle cx="225" cy="580" r="8" fill="#ef4444" stroke="#dc2626" stroke-width="2"/>
+  <text x="225" y="585" text-anchor="middle" fill="white" font-size="10" font-weight="bold">32</text>
+  
+  <!-- Titolo -->
+  <text x="200" y="30" text-anchor="middle" fill="#1e293b" font-size="16" font-weight="bold">Corpo Umano con Landmarks MediaPipe</text>
+  <text x="200" y="50" text-anchor="middle" fill="#64748b" font-size="12">33 punti numerati per selezione esercizi</text>
+  
+  <!-- Legenda -->
+  <rect x="10" y="10" width="120" height="80" fill="white" stroke="#e2e8f0" stroke-width="1" rx="5"/>
+  <text x="20" y="25" fill="#1e293b" font-size="10" font-weight="bold">Legenda:</text>
+  <text x="20" y="40" fill="#64748b" font-size="9">🔴 Punti cliccabili</text>
+  <text x="20" y="55" fill="#64748b" font-size="9">📊 Griglia alternativa</text>
+  <text x="20" y="70" fill="#64748b" font-size="9">🎯 Selezione attiva</text>
+</svg>

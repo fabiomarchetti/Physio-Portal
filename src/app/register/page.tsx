@@ -1,4 +1,4 @@
-// src/app/register/page.tsx - VERSIONE CORRETTA
+// src/app/register/page.tsx - VERSIONE CORRETTA SOLO FISIOTERAPISTI
 'use client'
 
 import { useState } from 'react'
@@ -8,18 +8,14 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-// import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group' // Rimosso temporaneamente
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Textarea } from '@/components/ui/textarea'
 import { AuthService } from '@/lib/supabase/auth'
 import { toast } from 'sonner'
 import { Eye, EyeOff, AlertCircle } from 'lucide-react'
 
-type TipoUtente = 'fisioterapista' | 'paziente'
-
 export default function RegisterPage() {
-  const [tipoUtente, setTipoUtente] = useState<TipoUtente>('paziente')
+  const tipoUtente = 'fisioterapista' // Fisso - solo registrazione fisioterapisti
   const [formData, setFormData] = useState({
     nome: '',
     cognome: '',
@@ -32,11 +28,7 @@ export default function RegisterPage() {
     nome_clinica: '',
     indirizzo_clinica: '',
     telefono: '',
-    email_clinica: '',
-    // Campi paziente
-    data_nascita: '',
-    codice_fiscale: '',
-    codice_fisioterapista: ''
+    email_clinica: ''
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -67,20 +59,11 @@ export default function RegisterPage() {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(formData.email)) return 'Formato email non valido'
 
-    if (tipoUtente === 'fisioterapista') {
-      if (!formData.numero_albo.trim()) return 'Il numero albo è obbligatorio'
-      if (!formData.specializzazione.trim()) return 'La specializzazione è obbligatoria'
-      if (!formData.nome_clinica.trim()) return 'Il nome della clinica è obbligatorio'
-      if (!formData.indirizzo_clinica.trim()) return 'L\'indirizzo della clinica è obbligatorio'
-    } else {
-      if (!formData.data_nascita) return 'La data di nascita è obbligatoria'
-      if (!formData.codice_fisioterapista.trim()) return 'Il codice fisioterapista è obbligatorio'
-      
-      // Validazione codice fiscale (opzionale ma se inserito deve essere valido)
-      if (formData.codice_fiscale && formData.codice_fiscale.length !== 16) {
-        return 'Il codice fiscale deve essere di 16 caratteri'
-      }
-    }
+    // Validazione campi fisioterapista
+    if (!formData.numero_albo.trim()) return 'Il numero albo è obbligatorio'
+    if (!formData.specializzazione.trim()) return 'La specializzazione è obbligatoria'
+    if (!formData.nome_clinica.trim()) return 'Il nome della clinica è obbligatorio'
+    if (!formData.indirizzo_clinica.trim()) return 'L\'indirizzo della clinica è obbligatorio'
 
     return null
   }
@@ -99,33 +82,19 @@ export default function RegisterPage() {
     setError('')
 
     try {
-      let result
-
-      if (tipoUtente === 'fisioterapista') {
-        result = await AuthService.registraFisioterapista({
-          nome: formData.nome.trim(),
-          cognome: formData.cognome.trim(),
-          email: formData.email.trim().toLowerCase(),
-          password: formData.password,
-          numero_albo: formData.numero_albo.trim().toUpperCase(),
-          specializzazione: formData.specializzazione.trim(),
-          nome_clinica: formData.nome_clinica.trim(),
-          indirizzo_clinica: formData.indirizzo_clinica.trim(),
-          telefono: formData.telefono.trim() || undefined,
-          email_clinica: formData.email_clinica.trim() || undefined
-        })
-      } else {
-        result = await AuthService.registraPaziente({
-          nome: formData.nome.trim(),
-          cognome: formData.cognome.trim(),
-          email: formData.email.trim().toLowerCase(),
-          password: formData.password,
-          data_nascita: formData.data_nascita,
-          codice_fiscale: formData.codice_fiscale.trim().toUpperCase() || undefined,
-          telefono: formData.telefono.trim() || undefined,
-          codice_fisioterapista: formData.codice_fisioterapista.trim().toUpperCase()
-        })
-      }
+      // Solo registrazione fisioterapisti
+      const result = await AuthService.registraFisioterapista({
+        nome: formData.nome.trim(),
+        cognome: formData.cognome.trim(),
+        email: formData.email.trim().toLowerCase(),
+        password: formData.password,
+        numero_albo: formData.numero_albo.trim().toUpperCase(),
+        specializzazione: formData.specializzazione.trim(),
+        nome_clinica: formData.nome_clinica.trim(),
+        indirizzo_clinica: formData.indirizzo_clinica.trim(),
+        telefono: formData.telefono.trim() || undefined,
+        email_clinica: formData.email_clinica.trim() || undefined
+      })
 
       if (result.success) {
         toast.success('Registrazione completata! Controlla la tua email per verificare l\'account.')
@@ -143,7 +112,7 @@ export default function RegisterPage() {
         } else if (errorStr.includes('albo') && (errorStr.includes('duplicate') || errorStr.includes('unique'))) {
           setError('Questo numero albo è già registrato')
         } else if (errorStr.includes('foreign') || errorStr.includes('not found') || errorStr.includes('invalid')) {
-          setError('Codice fisioterapista non valido')
+          setError('Errore nei dati inseriti')
         } else {
           setError('Errore durante la registrazione. Riprova.')
         }
@@ -161,30 +130,22 @@ export default function RegisterPage() {
       <Card className="w-full max-w-lg">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold text-center">
-            Registrati a Physio Portal
+            Registrazione Fisioterapista
           </CardTitle>
           <CardDescription className="text-center">
-            Crea il tuo account per iniziare
+            Accesso esclusivo per professionisti della riabilitazione Physio-Portal
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {/* Selezione tipo utente */}
-          <div className="mb-6">
-            <Label className="text-base font-medium">Tipo di account</Label>
-            <RadioGroup 
-              value={tipoUtente} 
-              onValueChange={(value: TipoUtente) => setTipoUtente(value)}
-              className="mt-2"
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="paziente" id="paziente" />
-                <Label htmlFor="paziente">Paziente</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="fisioterapista" id="fisioterapista" />
-                <Label htmlFor="fisioterapista">Fisioterapista</Label>
-              </div>
-            </RadioGroup>
+          {/* Info registrazione fisioterapista */}
+          <div className="mb-6 bg-blue-50 p-4 rounded-lg">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="text-blue-600">👨‍⚕️</div>
+              <Label className="text-blue-800 font-medium">Registrazione Professionale</Label>
+            </div>
+            <p className="text-blue-700 text-sm">
+              Sistema dedicato ai fisioterapisti per la gestione della riabilitazione post-traumatica e ortopedica.
+            </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -281,144 +242,95 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            {/* Campi specifici per fisioterapista */}
-            {tipoUtente === 'fisioterapista' && (
-              <>
-                <div className="space-y-2">
-                  <Label htmlFor="numero_albo">Numero Albo *</Label>
-                  <Input
-                    id="numero_albo"
-                    name="numero_albo"
-                    type="text"
-                    placeholder="Es. RM12345"
-                    value={formData.numero_albo}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
+            {/* Campi professionali fisioterapista */}
+            <div className="space-y-4 border-t pt-4">
+              <h3 className="font-medium text-gray-900">Dati Professionali</h3>
+              
+              <div className="space-y-2">
+                <Label htmlFor="numero_albo">Numero Albo *</Label>
+                <Input
+                  id="numero_albo"
+                  name="numero_albo"
+                  type="text"
+                  placeholder="Es. RM12345"
+                  value={formData.numero_albo}
+                  onChange={handleInputChange}
+                  required
+                />
+              </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="specializzazione">Specializzazione *</Label>
-                  <Input
-                    id="specializzazione"
-                    name="specializzazione"
-                    type="text"
-                    placeholder="Es. Fisioterapia Ortopedica"
-                    value={formData.specializzazione}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="specializzazione">Specializzazione *</Label>
+                <Input
+                  id="specializzazione"
+                  name="specializzazione"
+                  type="text"
+                  placeholder="Es. Fisioterapia Ortopedica"
+                  value={formData.specializzazione}
+                  onChange={handleInputChange}
+                  required
+                />
+              </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="nome_clinica">Nome Clinica/Studio *</Label>
-                  <Input
-                    id="nome_clinica"
-                    name="nome_clinica"
-                    type="text"
-                    placeholder="Centro Fisioterapico Rossi"
-                    value={formData.nome_clinica}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="nome_clinica">Nome Clinica/Studio *</Label>
+                <Input
+                  id="nome_clinica"
+                  name="nome_clinica"
+                  type="text"
+                  placeholder="Centro Fisioterapico Rossi"
+                  value={formData.nome_clinica}
+                  onChange={handleInputChange}
+                  required
+                />
+              </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="indirizzo_clinica">Indirizzo Clinica *</Label>
-                  <Textarea
-                    id="indirizzo_clinica"
-                    name="indirizzo_clinica"
-                    placeholder="Via Roma 123, 00100 Roma"
-                    value={formData.indirizzo_clinica}
-                    onChange={handleInputChange}
-                    required
-                    rows={2}
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="indirizzo_clinica">Indirizzo Clinica *</Label>
+                <Textarea
+                  id="indirizzo_clinica"
+                  name="indirizzo_clinica"
+                  placeholder="Via Roma 123, 00100 Roma"
+                  value={formData.indirizzo_clinica}
+                  onChange={handleInputChange}
+                  required
+                  rows={2}
+                />
+              </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="telefono">Telefono</Label>
-                  <Input
-                    id="telefono"
-                    name="telefono"
-                    type="tel"
-                    placeholder="+39 123 456 7890"
-                    value={formData.telefono}
-                    onChange={handleInputChange}
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="telefono">Telefono</Label>
+                <Input
+                  id="telefono"
+                  name="telefono"
+                  type="tel"
+                  placeholder="+39 123 456 7890"
+                  value={formData.telefono}
+                  onChange={handleInputChange}
+                />
+              </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="email_clinica">Email Clinica</Label>
-                  <Input
-                    id="email_clinica"
-                    name="email_clinica"
-                    type="email"
-                    placeholder="info@clinica.it"
-                    value={formData.email_clinica}
-                    onChange={handleInputChange}
-                  />
-                </div>
-              </>
-            )}
+              <div className="space-y-2">
+                <Label htmlFor="email_clinica">Email Clinica</Label>
+                <Input
+                  id="email_clinica"
+                  name="email_clinica"
+                  type="email"
+                  placeholder="info@clinica.it"
+                  value={formData.email_clinica}
+                  onChange={handleInputChange}
+                />
+              </div>
+            </div>
 
-            {/* Campi specifici per paziente */}
-            {tipoUtente === 'paziente' && (
-              <>
-                <div className="space-y-2">
-                  <Label htmlFor="data_nascita">Data di Nascita *</Label>
-                  <Input
-                    id="data_nascita"
-                    name="data_nascita"
-                    type="date"
-                    value={formData.data_nascita}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="codice_fisioterapista">Codice Fisioterapista *</Label>
-                  <Input
-                    id="codice_fisioterapista"
-                    name="codice_fisioterapista"
-                    type="text"
-                    placeholder="Numero albo del tuo fisioterapista (es. RM12345)"
-                    value={formData.codice_fisioterapista}
-                    onChange={handleInputChange}
-                    required
-                  />
-                  <p className="text-xs text-gray-500">
-                    Chiedi questo codice al tuo fisioterapista
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="codice_fiscale">Codice Fiscale</Label>
-                  <Input
-                    id="codice_fiscale"
-                    name="codice_fiscale"
-                    type="text"
-                    placeholder="RSSMRA80A01H501Z"
-                    value={formData.codice_fiscale}
-                    onChange={handleInputChange}
-                    maxLength={16}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="telefono">Telefono</Label>
-                  <Input
-                    id="telefono"
-                    name="telefono"
-                    type="tel"
-                    placeholder="+39 123 456 7890"
-                    value={formData.telefono}
-                    onChange={handleInputChange}
-                  />
-                </div>
-              </>
-            )}
+            {/* Info per pazienti */}
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h4 className="font-medium text-gray-800 mb-2">📋 Informazione per i Pazienti</h4>
+              <p className="text-sm text-gray-600">
+                I pazienti vengono registrati direttamente dal proprio fisioterapista tramite la dashboard professionale. 
+                Le credenziali di accesso saranno fornite dal fisioterapista tramite codice fiscale.
+              </p>
+            </div>
 
             {/* Visualizzazione errori */}
             {error && (
@@ -433,7 +345,7 @@ export default function RegisterPage() {
               className="w-full" 
               disabled={loading}
             >
-              {loading ? 'Registrazione in corso...' : 'Registrati'}
+              {loading ? 'Registrazione in corso...' : 'Registra Fisioterapista'}
             </Button>
           </form>
 

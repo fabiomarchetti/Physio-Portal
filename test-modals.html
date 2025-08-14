@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Modali - Physio Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Simula le classi CSS del DialogContent */
+        .dialog-content-default {
+            max-width: calc(100% - 2rem);
+            width: 100%;
+        }
+        
+        @media (min-width: 640px) {
+            .dialog-content-default {
+                max-width: 32rem; /* sm:max-w-lg */
+            }
+        }
+        
+        /* Classi con important per sovrascrivere */
+        .dialog-95vw {
+            max-width: 95vw !important;
+            width: 95vw !important;
+        }
+        
+        .dialog-98vw {
+            max-width: 98vw !important;
+            width: 98vw !important;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 p-8">
+    <div class="max-w-7xl mx-auto space-y-6">
+        <h1 class="text-3xl font-bold text-gray-900 mb-8">Test Modali - Physio Portal</h1>
+        
+        <div class="flex gap-4">
+            <button onclick="openModal('categoriesModal')" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                🗂️ Test Modale Categorie (95vw)
+            </button>
+            <button onclick="openModal('exercisesModal')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">
+                💪 Test Modale Esercizi (98vw)
+            </button>
+        </div>
+        
+        <!-- Modale Categorie -->
+        <div id="categoriesModal" class="fixed inset-0 bg-black bg-opacity-70 hidden z-50 flex items-center justify-center">
+            <div class="dialog-content-default dialog-95vw h-[90vh] bg-white border-2 border-gray-300 shadow-2xl flex flex-col overflow-hidden rounded-lg">
+                <div class="p-6 border-b">
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                            🗂️ Categorie Esercizi (95% larghezza schermo)
+                        </h2>
+                        <button onclick="closeModal('categoriesModal')" class="text-gray-500 hover:text-gray-700 text-2xl">×</button>
+                    </div>
+                </div>
+                
+                <div class="flex flex-col h-full p-6">
+                    <div class="flex justify-between items-center bg-gray-50 p-4 rounded-lg mb-6">
+                        <div>
+                            <h3 class="text-xl font-bold text-gray-800">Gestisci le categorie</h3>
+                            <p class="text-sm text-gray-600 mt-1">
+                                Organizza i tuoi esercizi per area del corpo (Test con 95% larghezza)
+                            </p>
+                        </div>
+                        <button class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">
+                            ➕ Nuova Categoria
+                        </button>
+                    </div>
+                    
+                    <div class="flex-1 overflow-y-auto pr-2 min-h-0">
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <!-- Categoria di esempio -->
+                            <div class="border-2 border-gray-200 rounded-xl p-6 hover:border-blue-300 hover:shadow-lg transition-all duration-200 bg-white cursor-pointer">
+                                <div class="flex justify-between items-start mb-4">
+                                    <div class="flex-1">
+                                        <h4 class="text-lg font-semibold text-gray-800 mb-2">Spalla e Braccio</h4>
+                                        <div class="mt-3">
+                                            <span class="bg-gray-200 text-gray-700 px-2 py-1 rounded text-xs">5 esercizi</span>
+                                        </div>
+                                    </div>
+                                    <div class="flex gap-2 ml-4">
+                                        <button class="hover:bg-red-50 text-red-600 hover:text-red-700 p-2 rounded">🗑️</button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="border-2 border-gray-200 rounded-xl p-6 hover:border-blue-300 hover:shadow-lg transition-all duration-200 bg-white cursor-pointer">
+                                <div class="flex justify-between items-start mb-4">
+                                    <div class="flex-1">
+                                        <h4 class="text-lg font-semibold text-gray-800 mb-2">Colonna Vertebrale</h4>
+                                        <div class="mt-3">
+                                            <span class="bg-gray-200 text-gray-700 px-2 py-1 rounded text-xs">8 esercizi</span>
+                                        </div>
+                                    </div>
+                                    <div class="flex gap-2 ml-4">
+                                        <button class="hover:bg-red-50 text-red-600 hover:text-red-700 p-2 rounded">🗑️</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Modale Esercizi -->
+        <div id="exercisesModal" class="fixed inset-0 bg-black bg-opacity-70 hidden z-50 flex items-center justify-center">
+            <div class="dialog-content-default dialog-98vw h-[90vh] bg-white border-2 border-gray-300 shadow-2xl flex flex-col overflow-hidden rounded-lg">
+                <div class="p-6 border-b">
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                            💪 Esercizi - Spalla e Braccio (98% larghezza schermo)
+                        </h2>
+                        <button onclick="closeModal('exercisesModal')" class="text-gray-500 hover:text-gray-700 text-2xl">×</button>
+                    </div>
+                </div>
+                
+                <div class="flex flex-col h-full p-6">
+                    <div class="flex justify-between items-center bg-gray-50 p-4 rounded-lg mb-6">
+                        <div>
+                            <h3 class="text-xl font-bold text-gray-800">Esercizi della categoria</h3>
+                            <p class="text-sm text-gray-600 mt-1">Gestisci gli esercizi per Spalla e Braccio (Test con 98% larghezza)</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button class="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50">
+                                ← Torna alle Categorie
+                            </button>
+                            <button class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg">
+                                ➕ Nuovo Esercizio
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="flex-1 overflow-y-auto pr-2 min-h-0">
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            <!-- Esercizi di esempio -->
+                            <div class="border-2 border-gray-200 rounded-xl p-6 hover:border-green-300 hover:shadow-lg transition-all duration-200 bg-white">
+                                <div class="flex justify-between items-start mb-4">
+                                    <div class="flex-1">
+                                        <h4 class="text-lg font-semibold text-gray-800 mb-2">Elevazione laterale del braccio</h4>
+                                        <p class="text-gray-600 leading-relaxed mb-3">Solleva lentamente il braccio lateralmente fino all'altezza della spalla, mantieni per 3 secondi e abbassa lentamente.</p>
+                                        <p class="text-sm text-gray-500 italic mb-3">"Ripeti 10 volte per 3 serie"</p>
+                                        <div class="flex gap-2">
+                                            <span class="border border-gray-300 text-gray-700 px-2 py-1 rounded text-xs">5 landmarks</span>
+                                        </div>
+                                    </div>
+                                    <div class="flex gap-2 ml-4">
+                                        <button class="hover:bg-red-50 text-red-600 hover:text-red-700 p-2 rounded">🗑️</button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="border-2 border-gray-200 rounded-xl p-6 hover:border-green-300 hover:shadow-lg transition-all duration-200 bg-white">
+                                <div class="flex justify-between items-start mb-4">
+                                    <div class="flex-1">
+                                        <h4 class="text-lg font-semibold text-gray-800 mb-2">Rotazione esterna della spalla</h4>
+                                        <p class="text-gray-600 leading-relaxed mb-3">Con il gomito flesso a 90°, ruota esternamente il braccio mantenendo il gomito aderente al corpo.</p>
+                                        <p class="text-sm text-gray-500 italic mb-3">"Movimento lento e controllato"</p>
+                                        <div class="flex gap-2">
+                                            <span class="border border-gray-300 text-gray-700 px-2 py-1 rounded text-xs">4 landmarks</span>
+                                        </div>
+                                    </div>
+                                    <div class="flex gap-2 ml-4">
+                                        <button class="hover:bg-red-50 text-red-600 hover:text-red-700 p-2 rounded">🗑️</button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="border-2 border-gray-200 rounded-xl p-6 hover:border-green-300 hover:shadow-lg transition-all duration-200 bg-white">
+                                <div class="flex justify-between items-start mb-4">
+                                    <div class="flex-1">
+                                        <h4 class="text-lg font-semibold text-gray-800 mb-2">Flessione anteriore del braccio</h4>
+                                        <p class="text-gray-600 leading-relaxed mb-3">Solleva il braccio anteriormente fino all'altezza della spalla, mantieni la posizione e abbassa lentamente.</p>
+                                        <div class="flex gap-2">
+                                            <span class="border border-gray-300 text-gray-700 px-2 py-1 rounded text-xs">3 landmarks</span>
+                                        </div>
+                                    </div>
+                                    <div class="flex gap-2 ml-4">
+                                        <button class="hover:bg-red-50 text-red-600 hover:text-red-700 p-2 rounded">🗑️</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function openModal(modalId) {
+            document.getElementById(modalId).classList.remove('hidden');
+        }
+        
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.add('hidden');
+        }
+        
+        // Chiudi modale cliccando fuori
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('bg-black')) {
+                e.target.classList.add('hidden');
+            }
+        });
+        
+        // Chiudi modale con ESC
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                document.querySelectorAll('[id$="Modal"]').forEach(modal => {
+                    modal.classList.add('hidden');
+                });
+            }
+        });
+    </script>
+</body>
+</html>

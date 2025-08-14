@@ -110,7 +110,7 @@ export default function ForgotPasswordPage() {
                 required
               />
               <p className="text-xs text-gray-500">
-                Inserisci l'email con cui ti sei registrato
+                Inserisci l&apos;email con cui ti sei registrato
               </p>
             </div>
 

@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { AuthService } from '@/lib/supabase/auth'
+import { createClient } from '@/lib/supabase/client'
+import { toast } from 'sonner'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -24,12 +26,49 @@ export default function LoginPage() {
     try {
       const { success, error } = await AuthService.login(email, password)
       if (!success || error) {
-        setError('Errore durante il login')
+        setError('Credenziali non valide')
+        return
+      }
+
+      // Login riuscito, ora ottieni il profilo per determinare dove reindirizzare
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (user) {
+        // Ottieni il profilo utente
+        const { data: profilo, error: profiloError } = await supabase
+          .from('profili')
+          .select('*')
+          .eq('id', user.id)
+          .single()
+
+        if (profiloError) {
+          console.error('Errore nel recupero profilo:', profiloError)
+          setError('Errore nel recupero del profilo utente')
+          return
+        }
+
+        if (profilo) {
+          // Reindirizza alla dashboard specifica in base al ruolo
+          if (profilo.ruolo === 'fisioterapista') {
+            toast.success('Login riuscito! Reindirizzamento alla dashboard fisioterapista...')
+            router.push('/dashboard/fisioterapista')
+          } else if (profilo.ruolo === 'paziente') {
+            toast.success('Login riuscito! Reindirizzamento alla dashboard paziente...')
+            router.push('/dashboard/paziente')
+          } else {
+            // Ruolo non riconosciuto, vai alla dashboard generica
+            router.push('/dashboard')
+          }
+        } else {
+          // Profilo non trovato, vai a complete-profile
+          router.push('/complete-profile')
+        }
       } else {
-        // Reindirizza a complete-profile che controllerà se il profilo esiste
-        router.push('/complete-profile')
+        setError('Errore nel recupero dell\'utente')
       }
     } catch (err) {
+      console.error('Errore durante il login:', err)
       setError('Errore durante il login')
     } finally {
       setLoading(false)

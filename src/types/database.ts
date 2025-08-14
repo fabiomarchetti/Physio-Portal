@@ -67,6 +67,8 @@ export interface Database {
           id: string
           profilo_id: string
           fisioterapista_id: string
+          nome_paziente: string
+          cognome_paziente: string
           data_nascita: string
           codice_fiscale: string | null
           telefono: string | null
@@ -80,6 +82,8 @@ export interface Database {
           id?: string
           profilo_id: string
           fisioterapista_id: string
+          nome_paziente: string
+          cognome_paziente: string
           data_nascita: string
           codice_fiscale?: string | null
           telefono?: string | null
@@ -93,6 +97,8 @@ export interface Database {
           id?: string
           profilo_id?: string
           fisioterapista_id?: string
+          nome_paziente?: string
+          cognome_paziente?: string
           data_nascita?: string
           codice_fiscale?: string | null
           telefono?: string | null
@@ -395,6 +401,33 @@ export interface DatiRegistrazionePaziente {
   codice_fiscale?: string
   telefono?: string
   codice_fisioterapista: string // per collegare al fisioterapista
+}
+
+// Nuovo tipo per registrazione paziente da parte fisioterapista
+export interface DatiRegistrazionePazienteDaFisioterapista {
+  nome: string
+  cognome: string
+  codice_fiscale: string // Login principale per il paziente
+  data_nascita: string
+  telefono?: string
+  diagnosi?: string
+  piano_terapeutico?: string
+  note?: string
+  fisioterapista_id: string
+}
+
+// Tipo per login paziente con codice fiscale
+export interface LoginPazienteConCF {
+  codice_fiscale: string
+  password: string // Prime 5 lettere del CF in minuscolo
+}
+
+// Tipo per credenziali paziente generate
+export interface CredenzialiPaziente {
+  codice_fiscale: string
+  password: string
+  nome_completo: string
+  credenziali_formattate: string
 }
 
 export interface DatiNuovaSessione {

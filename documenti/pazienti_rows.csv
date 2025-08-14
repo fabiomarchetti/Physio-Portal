@@ -1,0 +1,2 @@
+id,profilo_id,fisioterapista_id,data_nascita,codice_fiscale,telefono,diagnosi,piano_terapeutico,note,attivo,data_creazione
+4fafda66-c6fd-493d-af0b-77395213754a,e1184264-d065-483f-9d2e-e60e56eb3dd9,df1f1919-09d9-43c4-81b9-dfd61be6d9f3,1985-04-15,VRDGPP71D15H501Z,+39 338 123 4567,Distorsione caviglia destra post-infortunio lavorativo,Riabilitazione proprioceptiva e rinforzo muscolare,"Paziente con mobilità ridotta, preferisce esercizi domiciliari",true,2025-08-09 21:11:31.048226+00
