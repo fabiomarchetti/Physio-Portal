@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, Plus, Dumbbell, Trash2, Eye } from 'lucide-react'
+import { Plus, Dumbbell, Trash2, Eye, FileText, Clock, Target, Activity, Calendar } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/useAuth'
 
@@ -18,13 +18,13 @@ interface CategoriaEsercizio {
 }
 
 interface Esercizio {
-  id_esercizio: number        // ✅ Corretto: nome colonna reale
-  id_categoria: number        // ✅ Esiste nel database
-  nome_esercizio: string      // ✅ Esiste nel database
-  img_esercizio?: string      // ✅ Esiste nel database
-  descrizione_esecuzione: string // ✅ Esiste nel database
-  note?: string               // ✅ Esiste nel database
-  landmark?: string[]         // ✅ Esiste nel database (array)
+  id_esercizio: number
+  id_categoria: number
+  nome_esercizio: string
+  img_esercizio?: string
+  descrizione_esecuzione: string
+  note?: string
+  landmark?: number[]
 }
 
 export default function EserciziPage() {
@@ -37,183 +37,53 @@ export default function EserciziPage() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    console.log('🔄 useEffect esercizi - Stato attuale:', { 
-      authLoading, 
-      user: !!user, 
-      profile: !!profile, 
-      profileRuolo: profile?.ruolo 
-    })
-    
-    // ✅ CORREZIONE: Aspetto che TUTTO sia caricato
-    console.log('🔍 Valori completi:', { 
-      authLoading, 
-      user, 
-      profile,
-      userType: typeof user,
-      profileType: typeof profile
-    })
-    
-    if (authLoading || !user || !profile) {
-      console.log('⏳ In attesa di completamento:', { 
-        authLoading, 
-        user: !!user, 
-        profile: !!profile 
-      })
-      return
-    }
-    
-    // ✅ CORREZIONE: Ora user E profile sono sicuramente caricati
+    if (authLoading || !user || !profile) return
+
     if (profile.ruolo !== 'fisioterapista') {
-      console.log('❌ Utente non autorizzato, ruolo:', profile.ruolo)
       router.push('/dashboard')
       return
     }
-    
-    console.log('✅ Autenticazione verificata, caricamento dati...')
-    const categoriaId = searchParams.get('categoria')
-    if (categoriaId) {
-      caricaDati(parseInt(categoriaId))
-    } else {
+
+    const categoriaParam = searchParams.get('categoria')
+    const categoriaId = categoriaParam ? parseInt(categoriaParam, 10) : NaN
+
+    if (Number.isNaN(categoriaId)) {
       setError('Nessuna categoria selezionata')
       setLoading(false)
+      return
     }
+
+    caricaDati(categoriaId)
   }, [searchParams, user, profile, authLoading, router])
 
   const caricaDati = async (categoriaId: number) => {
     try {
-      console.log('🔄 Caricamento dati per categoria:', categoriaId)
       const supabase = createClient()
-      
-      // TEST 1: Verifica connessione Supabase
-      console.log('🔌 Test connessione Supabase...')
-      
-      // Test semplice: conta righe
-      const { data: testData, error: testError } = await supabase
-        .from('categorie_esercizi')
-        .select('count')
-        .limit(1)
-      
-      console.log('📊 Test connessione risultato:', { 
-        data: testData, 
-        error: testError,
-        errorType: typeof testError,
-        errorKeys: testError ? Object.keys(testError) : null
-      })
-      
-      if (testError) {
-        console.error('❌ Errore test connessione:', testError)
-        throw new Error(`Test connessione fallito: ${testError.message}`)
-      }
-      
-      // Test 2: Verifica struttura tabella categorie
-      console.log('🔍 Test struttura tabella categorie...')
-      const { data: structureData, error: structureError } = await supabase
-        .from('categorie_esercizi')
-        .select('*')
-        .limit(1)
-      
-      console.log('📊 Test struttura categorie risultato:', { 
-        data: structureData, 
-        error: structureError,
-        columns: structureData ? Object.keys(structureData[0] || {}) : null
-      })
-      
-      // Test 3: Verifica struttura tabella esercizi
-      console.log('🔍 Test struttura tabella esercizi...')
-      const { data: eserciziStructureData, error: eserciziStructureError } = await supabase
-        .from('esercizi')
-        .select('*')
-        .limit(1)
-      
-      console.log('📊 Test struttura esercizi risultato:', { 
-        data: eserciziStructureData, 
-        error: eserciziStructureError,
-        columns: eserciziStructureData ? Object.keys(eserciziStructureData[0] || {}) : null
-      })
-      
-      // TEST 2: Verifica sessione utente
-      console.log('👤 Verifica sessione utente...')
-      const { data: { user: currentUser }, error: userError } = await supabase.auth.getUser()
-      console.log('👤 Utente corrente:', currentUser)
-      
-      if (userError) {
-        console.error('❌ Errore verifica utente:', userError)
-        throw new Error(`Verifica utente fallita: ${userError.message}`)
-      }
-      
-      // Carica categoria
-      console.log('📋 Caricamento categoria...')
-      console.log('🔍 Query categoria:', { table: 'categorie_esercizi', id: categoriaId })
-      
       const { data: categoria, error: errorCategoria } = await supabase
         .from('categorie_esercizi')
-        .select('*')
+        .select('id, nome_categoria, img_categoria, data_creazione, data_aggiornamento')
         .eq('id', categoriaId)
         .single()
 
-      console.log('📊 Risultato query categoria:', { 
-        data: categoria, 
-        error: errorCategoria,
-        errorType: typeof errorCategoria,
-        errorKeys: errorCategoria ? Object.keys(errorCategoria) : null
-      })
-
       if (errorCategoria) {
-        console.error('❌ Errore caricamento categoria:', errorCategoria)
         throw errorCategoria
       }
       
-      console.log('✅ Categoria caricata:', categoria)
       setCategoriaSelezionata(categoria)
 
-      // Carica esercizi
-      console.log('🏋️ Caricamento esercizi...')
-      
-      // TEST: Query semplice senza JOIN
-      console.log('🔍 Test query semplice esercizi...')
-      const { data: testEsercizi, error: testErrorEsercizi } = await supabase
+      const { data: eserciziData, error: errorEsercizi } = await supabase
         .from('esercizi')
-        .select('*')
-        .limit(1)
-      
-      console.log('📊 Test query semplice risultato:', { 
-        data: testEsercizi, 
-        error: testErrorEsercizi,
-        errorType: typeof testErrorEsercizi,
-        errorKeys: testErrorEsercizi ? Object.keys(testErrorEsercizi) : null
-      })
-      
-      if (testErrorEsercizi) {
-        console.error('❌ Tabella esercizi non accessibile:', testErrorEsercizi)
-        throw new Error(`Tabella esercizi non accessibile: ${testErrorEsercizi.message}`)
-      }
-      
-      console.log('🔍 Query esercizi separata...')
-      
-      // ✅ SOLUZIONE: Query separata senza JOIN problematico
-                  const { data: eserciziData, error: errorEsercizi } = await supabase
-              .from('esercizi')
-              .select('*')
-              .eq('id_categoria', categoriaId)
-              .order('id_esercizio', { ascending: false })
-
-      console.log('📊 Risultato query esercizi:', { 
-        data: eserciziData, 
-        error: errorEsercizi,
-        errorType: typeof errorEsercizi,
-        errorKeys: errorEsercizi ? Object.keys(errorEsercizi) : null
-      })
+        .select('id_esercizio, id_categoria, nome_esercizio, img_esercizio, descrizione_esecuzione, note, landmark')
+        .eq('id_categoria', categoriaId)
+        .order('id_esercizio', { ascending: false })
 
       if (errorEsercizi) {
-        console.error('❌ Errore caricamento esercizi:', errorEsercizi)
         throw errorEsercizi
       }
       
-      console.log('✅ Esercizi caricati:', eserciziData)
       setEsercizi(eserciziData || [])
 
     } catch (error) {
-      console.error('❌ Errore generale caricamento dati:', error)
       setError(`Errore nel caricamento dei dati: ${error instanceof Error ? error.message : 'Errore sconosciuto'}`)
     } finally {
       setLoading(false)
@@ -322,48 +192,63 @@ export default function EserciziPage() {
               <Card key={esercizio.id_esercizio} className="hover:shadow-lg transition-shadow">
                 <CardHeader className="pb-3">
                   <div className="flex justify-between items-start">
-                    <CardTitle className="text-lg">{esercizio.nome_esercizio}</CardTitle>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="outline">
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
+                    <div className="flex-1 min-w-0">
+                      <CardTitle className="text-lg font-semibold text-gray-800 truncate">
+                        {esercizio.nome_esercizio}
+                      </CardTitle>
+                      <p className="text-sm text-gray-600 mt-1 line-clamp-2">
+                        {esercizio.descrizione_esecuzione}
+                      </p>
+                    </div>
+                    <div className="flex gap-2 ml-4">
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => handleEliminaEsercizio(esercizio.id_esercizio)}
-                        className="text-red-600 hover:text-red-700"
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  <p className="text-gray-600 text-sm line-clamp-3">
-                    {esercizio.descrizione_esecuzione}
-                  </p>
-                  
-                                     {esercizio.note && (
-                     <p className="text-sm text-gray-500 italic">
-                       &ldquo;{esercizio.note}&rdquo;
-                     </p>
-                   )}
-                  
-                  <div className="flex flex-wrap gap-2">
+                <CardContent className="pt-0">
+                  <div className="space-y-3">
+                    {esercizio.note && (
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <FileText className="h-4 w-4" />
+                        <span className="truncate">{esercizio.note}</span>
+                      </div>
+                    )}
                     {esercizio.landmark && esercizio.landmark.length > 0 && (
-                      <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700">
-                        {esercizio.landmark.length} landmarks
-                      </Badge>
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <Activity className="h-4 w-4" />
+                        <span>{esercizio.landmark.length} landmarks selezionati</span>
+                      </div>
                     )}
-                    {esercizio.img_esercizio && (
-                      <Badge variant="outline" className="text-xs">
-                        Con immagine
-                      </Badge>
-                    )}
-                  </div>
-                  
-                  <div className="text-xs text-gray-400">
-                    ID: {esercizio.id_esercizio} | Categoria: {esercizio.id_categoria}
+                    <div className="flex items-center gap-2 text-sm text-gray-500">
+                      <Calendar className="h-4 w-4" />
+                      <span>ID: {esercizio.id_esercizio} | Categoria: {esercizio.id_categoria}</span>
+                    </div>
+                    
+                    {/* Pulsanti per avviare sessioni */}
+                    <div className="flex gap-2 pt-2 border-t border-gray-100">
+                      <Button
+                        size="sm"
+                        onClick={() => router.push(`/sessione/esercizio-${esercizio.id_esercizio}?mode=patient&esercizio=${esercizio.id_esercizio}`)}
+                        className="bg-green-600 hover:bg-green-700 text-white text-xs"
+                      >
+                        👤 Sessione Paziente
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => router.push(`/sessione/esercizio-${esercizio.id_esercizio}?mode=therapist&esercizio=${esercizio.id_esercizio}`)}
+                        className="text-blue-600 hover:text-blue-700 border-blue-300 text-xs"
+                      >
+                        🧑‍⚕️ Sessione Terapista
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

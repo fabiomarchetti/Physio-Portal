@@ -4,25 +4,28 @@ export interface Database {
       profili: {
         Row: {
           id: string
-          ruolo: 'fisioterapista' | 'paziente'
+          ruolo: 'sviluppatore' | 'fisioterapista' | 'paziente'
           nome: string
           cognome: string
+          email: string | null
           data_creazione: string
           data_aggiornamento: string
         }
         Insert: {
           id: string
-          ruolo: 'fisioterapista' | 'paziente'
+          ruolo: 'sviluppatore' | 'fisioterapista' | 'paziente'
           nome: string
           cognome: string
+          email?: string | null
           data_creazione?: string
           data_aggiornamento?: string
         }
         Update: {
           id?: string
-          ruolo?: 'fisioterapista' | 'paziente'
+          ruolo?: 'sviluppatore' | 'fisioterapista' | 'paziente'
           nome?: string
           cognome?: string
+          email?: string | null
           data_creazione?: string
           data_aggiornamento?: string
         }
@@ -353,7 +356,7 @@ export type TipoEsercizio = Database['public']['Tables']['tipi_esercizio']['Row'
 export type ObiettivoTerapeutico = Database['public']['Tables']['obiettivi_terapeutici']['Row']
 
 // Enums per type safety
-export type RuoloUtente = 'fisioterapista' | 'paziente'
+export type RuoloUtente = 'sviluppatore' | 'fisioterapista' | 'paziente'
 export type StatoSessione = 'attiva' | 'completata' | 'annullata'
 export type DifficoltaEsercizio = 'facile' | 'medio' | 'difficile'
 export type StatoObiettivo = 'attivo' | 'raggiunto' | 'sospeso'

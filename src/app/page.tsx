@@ -19,12 +19,9 @@ export default function HomePage() {
               l&apos;intelligenza artificiale per monitorare e migliorare i progressi 
               nella riabilitazione motoria.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <div className="flex justify-center">
               <Button asChild size="lg" className="text-lg px-8 py-3">
-                <Link href="/register">Inizia Ora</Link>
-              </Button>
-              <Button variant="outline" asChild size="lg" className="text-lg px-8 py-3">
-                <Link href="/login">Accedi</Link>
+                <Link href="/login">Accedi al Portale</Link>
               </Button>
             </div>
           </div>
@@ -103,14 +100,14 @@ export default function HomePage() {
       <div className="py-16 bg-blue-600">
         <div className="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl font-bold text-white mb-4">
-            Pronto a Rivoluzionare la Riabilitazione?
+            Sistema di Riabilitazione con Computer Vision
           </h2>
           <p className="text-xl text-blue-100 mb-8">
-            Unisciti a fisioterapisti e pazienti che stanno già utilizzando 
-            la tecnologia per migliorare i risultati terapeutici.
+            Piattaforma dedicata a fisioterapisti e pazienti per monitorare
+            e migliorare i risultati terapeutici con tecnologia all&apos;avanguardia.
           </p>
           <Button asChild size="lg" variant="secondary">
-            <Link href="/register">Registrati Gratuitamente</Link>
+            <Link href="/login">Accedi</Link>
           </Button>
         </div>
       </div>

@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
-import type { User as SupabaseUser } from '@supabase/supabase-js'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
@@ -24,18 +23,19 @@ import {
   X,
   ArrowLeft
 } from 'lucide-react'
-import { AuthService } from '@/lib/supabase/auth'
 import { Profilo } from '@/types/database'
 import { toast } from 'sonner'
+import { useAuth } from '@/hooks/useAuth'
 
 interface NavbarProps {
-  utente?: SupabaseUser | null
+  utente?: { id: string; nome: string; cognome: string; ruolo: string } | null
   profilo?: Profilo | null
 }
 
 export function Navbar({ utente, profilo }: NavbarProps) {
   const router = useRouter()
   const [menuAperto, setMenuAperto] = useState(false)
+  const { logout } = useAuth()
 
   // Mostra il pulsante "Torna agli Esercizi" alla SINISTRA del logo
   const pathname = usePathname()
@@ -62,13 +62,9 @@ export function Navbar({ utente, profilo }: NavbarProps) {
   }
 
   const handleLogout = async () => {
-    const result = await AuthService.logout()
-    if (result.success) {
-      toast.success('Logout effettuato con successo')
-      router.push('/')
-    } else {
-      toast.error('Errore durante il logout')
-    }
+    await logout()
+    toast.success('Logout effettuato con successo')
+    router.push('/login')
   }
 
   const getInitials = (nome: string, cognome: string) => {

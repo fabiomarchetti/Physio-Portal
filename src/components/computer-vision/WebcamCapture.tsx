@@ -20,6 +20,7 @@ interface WebcamCaptureProps {
   onVideoReady?: (video: HTMLVideoElement) => void
   onError?: (error: string) => void
   className?: string
+  fullscreen?: boolean // Modalità fullscreen senza UI
 }
 
 interface MediaDeviceInfo {
@@ -27,7 +28,7 @@ interface MediaDeviceInfo {
   label: string
 }
 
-export function WebcamCapture({ onVideoReady, onError, className }: WebcamCaptureProps) {
+export function WebcamCapture({ onVideoReady, onError, className, fullscreen = false }: WebcamCaptureProps) {
   // Refs
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
@@ -38,6 +39,7 @@ export function WebcamCapture({ onVideoReady, onError, className }: WebcamCaptur
   const [error, setError] = useState<string | null>(null)
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([])
   const [selectedDevice, setSelectedDevice] = useState<string>('')
+  const [zoom, setZoom] = useState<number>(1) // Zoom level: 0.5 = 50%, 1 = 100%, 2 = 200%
   const [streamStats, setStreamStats] = useState({
     width: 0,
     height: 0,
@@ -236,6 +238,73 @@ export function WebcamCapture({ onVideoReady, onError, className }: WebcamCaptur
     })
   }, [devices, selectedDevice, isStreaming, isLoading, error])
 
+  // Modalità fullscreen - solo video senza UI
+  if (fullscreen) {
+    return (
+      <div className={`relative w-full h-full bg-black ${className || ''}`}>
+        <video
+          ref={videoRef}
+          className="w-full h-full object-cover"
+          style={{
+            width: '100%',
+            height: '100%',
+            minHeight: '100vh',
+            objectFit: 'cover',
+            transform: `scale(${zoom})`,
+            transformOrigin: 'center center'
+          }}
+          autoPlay
+          playsInline
+          muted
+        />
+
+        {/* Zoom Controls - Fullscreen */}
+        {isStreaming && (
+          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/70 backdrop-blur-sm px-6 py-3 rounded-full flex items-center gap-3 z-50">
+            <span className="text-white text-sm">Zoom:</span>
+            <input
+              type="range"
+              min="0.5"
+              max="3"
+              step="0.1"
+              value={zoom}
+              onChange={(e) => setZoom(parseFloat(e.target.value))}
+              className="w-32"
+            />
+            <span className="text-white text-sm font-mono min-w-[3rem]">{(zoom * 100).toFixed(0)}%</span>
+            <button
+              onClick={() => setZoom(1)}
+              className="text-white text-xs px-2 py-1 bg-white/20 rounded hover:bg-white/30"
+            >
+              Reset
+            </button>
+          </div>
+        )}
+
+        {/* Loading overlay */}
+        {isLoading && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+            <div className="text-white text-center">
+              <Camera className="h-12 w-12 mx-auto mb-2 animate-pulse" />
+              <p>Inizializzazione webcam...</p>
+            </div>
+          </div>
+        )}
+
+        {/* Error overlay */}
+        {error && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/80">
+            <Alert variant="destructive" className="max-w-md">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Modalità normale con UI
   return (
     <Card className={className}>
       <CardHeader>
@@ -249,11 +318,11 @@ export function WebcamCapture({ onVideoReady, onError, className }: WebcamCaptur
               Accesso video per computer vision
             </CardDescription>
           </div>
-          
+
           {/* Status Badge */}
           <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-            isStreaming 
-              ? 'bg-green-100 text-green-800 border border-green-200' 
+            isStreaming
+              ? 'bg-green-100 text-green-800 border border-green-200'
               : 'bg-gray-100 text-gray-800 border border-gray-200'
           }`}>
             {isStreaming ? (
@@ -270,13 +339,13 @@ export function WebcamCapture({ onVideoReady, onError, className }: WebcamCaptur
           </div>
         </div>
       </CardHeader>
-      
+
       <CardContent className="space-y-4">
         {/* Selezione Dispositivo */}
         {devices.length > 1 && (
           <div className="flex items-center gap-2">
             <Settings className="h-4 w-4" />
-            <select 
+            <select
               value={selectedDevice}
               onChange={(e) => changeDevice(e.target.value)}
               className="flex-1 px-3 py-2 border rounded-md bg-background"
@@ -296,10 +365,37 @@ export function WebcamCapture({ onVideoReady, onError, className }: WebcamCaptur
           <video
             ref={videoRef}
             className="w-full h-auto max-h-96 object-cover"
+            style={{
+              transform: `scale(${zoom})`,
+              transformOrigin: 'center center'
+            }}
             autoPlay
             muted
             playsInline
           />
+
+          {/* Zoom Controls Overlay */}
+          {isStreaming && (
+            <div className="absolute bottom-2 left-2 right-2 bg-black/70 backdrop-blur-sm px-3 py-2 rounded flex items-center gap-2 text-xs">
+              <span className="text-white">Zoom:</span>
+              <input
+                type="range"
+                min="0.5"
+                max="3"
+                step="0.1"
+                value={zoom}
+                onChange={(e) => setZoom(parseFloat(e.target.value))}
+                className="flex-1"
+              />
+              <span className="text-white font-mono min-w-[3rem]">{(zoom * 100).toFixed(0)}%</span>
+              <button
+                onClick={() => setZoom(1)}
+                className="text-white text-xs px-2 py-1 bg-white/20 rounded hover:bg-white/30"
+              >
+                Reset
+              </button>
+            </div>
+          )}
           
           {/* Overlay per loading/errori */}
           {(isLoading || error) && (

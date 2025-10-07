@@ -1,20 +1,24 @@
-// src/app/sessione/page.tsx - VERSIONE INTEGRATA
+// src/app/sessione/page.tsx - VERSIONE CON MODALITÀ SEPARATE
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { WebcamCapture } from '@/components/computer-vision/WebcamCapture'
-import { PoseDetection } from '@/components/computer-vision/PoseDetection'
+import { PoseOverlaySimple } from '@/components/computer-vision/PoseOverlaySimple'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { 
-  Play, 
-  Square, 
-  Activity, 
-  Video, 
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import {
+  Play,
+  Square,
+  Activity,
+  Video,
   Zap,
   BarChart3,
-  Save
+  Save,
+  Users,
+  UserCircle,
+  ExternalLink
 } from 'lucide-react'
 
 // Types per i dati rilevati
@@ -35,6 +39,9 @@ interface PoseDetectionResult {
 }
 
 export default function SessionePage() {
+  const searchParams = useSearchParams()
+  const mode = searchParams?.get('mode') || 'selection' // 'paziente', 'terapista', 'selection'
+
   // State management
   const [videoElement, setVideoElement] = useState<HTMLVideoElement | null>(null)
   const [isSessionActive, setIsSessionActive] = useState(false)
@@ -135,23 +142,151 @@ export default function SessionePage() {
     return Math.floor((endTime - sessionData.startTime) / 1000)
   }
 
+  // Funzione per aprire entrambe le finestre con un singolo click (evita blocco popup)
+  const apriEntrambeLeFinestre = () => {
+    // Apri prima finestra
+    const pazienteWindow = window.open('/sessione?mode=paziente', 'paziente-window', 'width=1920,height=1080')
+
+    // Piccolo delay per evitare che il browser blocchi la seconda
+    setTimeout(() => {
+      const terapistaWindow = window.open('/sessione?mode=terapista', 'terapista-window', 'width=1920,height=1080')
+
+      console.log('🪟 Finestre aperte:', {
+        paziente: pazienteWindow ? 'OK' : 'Bloccata',
+        terapista: terapistaWindow ? 'OK' : 'Bloccata'
+      })
+    }, 50)
+  }
+
+  // Modalità selezione - mostra solo messaggio
+  if (mode === 'selection') {
+    return (
+      <div className="container mx-auto py-8">
+        <div className="max-w-4xl mx-auto space-y-8 text-center">
+          <h1 className="text-4xl font-bold">Sessione Riabilitazione</h1>
+
+          <Alert>
+            <ExternalLink className="h-4 w-4" />
+            <AlertDescription className="text-left">
+              <strong>Setup sessione ambulatorio:</strong>
+              <ul className="mt-2 space-y-1 list-disc list-inside">
+                <li><strong>Vista Paziente</strong> - Schermo grande per il paziente (trascina su secondo monitor)</li>
+                <li><strong>Vista Terapista</strong> - Dashboard controlli e statistiche (computer fisioterapista)</li>
+              </ul>
+              <p className="mt-3 text-sm text-muted-foreground">
+                💡 Clicca sul pulsante verde per aprire ENTRAMBE le finestre con un solo click
+              </p>
+            </AlertDescription>
+          </Alert>
+
+          {/* Pulsante principale per aprire entrambe */}
+          <div className="space-y-4">
+            <Button
+              onClick={apriEntrambeLeFinestre}
+              size="lg"
+              className="bg-green-600 hover:bg-green-700 text-white text-lg px-8 py-6"
+            >
+              <ExternalLink className="h-5 w-5 mr-2" />
+              Apri Entrambe le Finestre (Paziente + Terapista)
+            </Button>
+
+            <p className="text-sm text-muted-foreground">oppure apri singolarmente:</p>
+          </div>
+
+          {/* Pulsanti individuali */}
+          <div className="flex gap-4 justify-center">
+            <Button onClick={() => window.open('/sessione?mode=paziente', 'paziente-window', 'width=1920,height=1080')} variant="outline" size="lg">
+              <UserCircle className="h-4 w-4 mr-2" />
+              Solo Vista Paziente
+            </Button>
+            <Button onClick={() => window.open('/sessione?mode=terapista', 'terapista-window', 'width=1920,height=1080')} variant="outline" size="lg">
+              <Users className="h-4 w-4 mr-2" />
+              Solo Vista Terapista
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Forza il video fullscreen/large quando ready
+  useEffect(() => {
+    if (videoElement) {
+      if (mode === 'paziente') {
+        // Paziente: fullscreen
+        videoElement.style.width = '100vw'
+        videoElement.style.height = '100vh'
+        videoElement.style.objectFit = 'cover'
+        videoElement.style.position = 'fixed'
+        videoElement.style.top = '0'
+        videoElement.style.left = '0'
+        videoElement.style.zIndex = '0'
+      } else if (mode === 'terapista') {
+        // Terapista: video grande ma non fullscreen
+        videoElement.style.width = '100%'
+        videoElement.style.height = '80vh'
+        videoElement.style.objectFit = 'cover'
+        videoElement.style.maxHeight = 'none'
+      }
+    }
+  }, [mode, videoElement])
+
+  // Vista PAZIENTE - Full screen senza margini
+  if (mode === 'paziente') {
+    return (
+      <div className="fixed inset-0 w-screen h-screen bg-black overflow-hidden" style={{ margin: 0, padding: 0 }}>
+        {/* Webcam Full Screen */}
+        <WebcamCapture
+          onVideoReady={handleVideoReady}
+          onError={handleWebcamError}
+          fullscreen={true}
+          className="w-full h-full"
+        />
+
+        {/* MediaPipe Overlay */}
+        {videoElement && (
+          <PoseOverlaySimple
+            videoElement={videoElement}
+            isActive={true}
+            onPoseDetected={handlePoseDetected}
+          />
+        )}
+
+        {/* Indicatore sessione attiva (piccolo badge in alto a destra) */}
+        {isSessionActive && (
+          <div className="absolute top-4 right-4 bg-green-500/80 text-white px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2 backdrop-blur-sm z-50">
+            <Activity className="h-4 w-4 animate-pulse" />
+            Sessione Attiva
+            <span className="font-mono">
+              {Math.floor(getSessionDuration() / 60)}:{(getSessionDuration() % 60).toString().padStart(2, '0')}
+            </span>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Vista TERAPISTA - Layout con pannello controlli
   return (
     <div className="container mx-auto py-8">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Sessione Riabilitazione</h1>
+            <h1 className="text-3xl font-bold flex items-center gap-3">
+              <Users className="h-8 w-8 text-green-600" />
+              Vista Terapista
+            </h1>
             <p className="text-muted-foreground">
-              Computer Vision - MediaPipe Pose Detection
+              Sessione Riabilitazione - MediaPipe Pose Detection
             </p>
           </div>
 
           {/* Session Status */}
           <div className="flex items-center gap-4">
             <div className={`px-3 py-1 rounded-full text-sm font-medium ${
-              isSessionActive 
-                ? 'bg-green-100 text-green-800 border border-green-200' 
+              isSessionActive
+                ? 'bg-green-100 text-green-800 border border-green-200'
                 : 'bg-gray-100 text-gray-800 border border-gray-200'
             }`}>
               {isSessionActive ? (
@@ -175,21 +310,28 @@ export default function SessionePage() {
         {/* Main Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Video Column */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Webcam */}
-            <WebcamCapture
-              onVideoReady={handleVideoReady}
-              onError={handleWebcamError}
-              className="h-fit"
-            />
+          <div className="lg:col-span-2">
+            {/* Webcam (contiene già il video) */}
+            <div className="relative w-full bg-black rounded-lg overflow-hidden" style={{ minHeight: '80vh' }}>
+              <div className="relative w-full h-full">
+                <WebcamCapture
+                  onVideoReady={handleVideoReady}
+                  onError={handleWebcamError}
+                  className="w-full h-full"
+                />
 
-            {/* Pose Detection */}
-            <PoseDetection
-              videoElement={videoElement}
-              onPoseDetected={handlePoseDetected}
-              onError={handlePoseError}
-              isActive={isSessionActive}
-            />
+                {/* MediaPipe Overlay - SOVRAPPOSTO al video dentro il wrapper */}
+                {videoElement && (
+                  <div className="absolute top-0 left-0 w-full h-full pointer-events-none" style={{ zIndex: 20 }}>
+                    <PoseOverlaySimple
+                      videoElement={videoElement}
+                      isActive={true}
+                      onPoseDetected={handlePoseDetected}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Control Panel */}

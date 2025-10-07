@@ -27,8 +27,8 @@ export function normalizzaCodiceFiscale(cf: string): string {
 }
 
 /**
- * Genera password automatica dalle prime 5 lettere del CF + numeri per Supabase
- * Esempio: RSSMRA45D15H501Z -> rssmr123
+ * Genera password automatica dalle prime 5 lettere del CF + numeri
+ * Esempio: RSSMRA45D15H501Z -> rssmr45d
  * (aggiunge numeri per raggiungere requisito lunghezza minima 8 caratteri)
  */
 export function generaPasswordDaCodiceFiscale(cf: string): string {

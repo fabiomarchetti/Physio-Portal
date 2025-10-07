@@ -1,6 +1,6 @@
 // src/hooks/useSessionRecording.ts
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { SessionDataService } from '@/lib/supabase/session-service'
+import { SessionDataService } from '@/lib/neon/session-service'
 import { MotionMetricsCalculator, MotionMetrics } from '@/lib/computer-vision/motion-metrics'
 import { toast } from 'sonner'
 

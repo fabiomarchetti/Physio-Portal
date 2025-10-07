@@ -1,15 +1,38 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { User } from '@supabase/supabase-js'
-import { createClient } from '@/lib/supabase/client'
 import { Profilo } from '@/types/database'
+
+interface User {
+  id: string
+  nome: string
+  cognome: string
+  email?: string
+  ruolo: 'sviluppatore' | 'fisioterapista' | 'paziente'
+  datiSpecifici?: any
+}
 
 interface UseAuthReturn {
   user: User | null
   profile: Profilo | null
   loading: boolean
   error: string | null
+  login: (credentials: LoginCredentials) => Promise<LoginResult>
+  logout: () => Promise<void>
+  refreshUser: () => Promise<void>
+}
+
+interface LoginCredentials {
+  email?: string
+  codiceFiscale?: string
+  password: string
+  tipo: 'sviluppatore' | 'fisioterapista' | 'paziente'
+}
+
+interface LoginResult {
+  success: boolean
+  message: string
+  user?: User
 }
 
 export function useAuth(): UseAuthReturn {
@@ -18,89 +41,146 @@ export function useAuth(): UseAuthReturn {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // ✅ CORREZIONE: Creo supabase una sola volta
-  const [supabase] = useState(() => createClient())
+  // Carica utente corrente da API
+  const loadCurrentUser = async () => {
+    try {
+      console.log('🔐 useAuth: Caricamento utente corrente...')
 
-  useEffect(() => {
-    // Ottieni l'utente corrente
-    const getCurrentUser = async () => {
-      try {
-        console.log('🔐 useAuth: Inizializzazione...')
-        setLoading(true)
-        
-        // Ottieni sessione corrente
-        console.log('🔐 useAuth: Verifica sessione...')
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-        
-        console.log('🔐 useAuth: Risultato sessione:', { session: !!session, user: !!session?.user, error: sessionError })
-        
-        if (sessionError) {
-          console.error('❌ useAuth: Errore sessione:', sessionError)
-          setError(sessionError.message)
-          setLoading(false)
-          return
-        }
+      const response = await fetch('/api/auth/me', {
+        credentials: 'include',
+      })
 
-        if (session?.user) {
-          console.log('✅ useAuth: Utente trovato:', session.user.id)
-          setUser(session.user)
-          
-          // Ottieni profilo utente
-          console.log('🔐 useAuth: Caricamento profilo...')
-          const { data: profiloData, error: profiloError } = await supabase
-            .from('profili')
-            .select('*')
-            .eq('id', session.user.id)
-            .single()
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success && data.user) {
+          console.log('✅ useAuth: Utente caricato:', data.user)
+          setUser(data.user)
 
-          if (profiloError) {
-            console.error('❌ useAuth: Errore profilo:', profiloError)
-            setError(profiloError.message)
-          } else {
-            console.log('✅ useAuth: Profilo caricato:', profiloData)
-            setProfile(profiloData)
+          // Costruisci profilo dalla risposta
+          const profiloData: Profilo = {
+            id: data.user.id,
+            nome: data.user.nome,
+            cognome: data.user.cognome,
+            ruolo: data.user.ruolo,
+            email: data.user.email || null,
+            data_creazione: '',
+            data_aggiornamento: '',
           }
-        } else {
-          console.log('❌ useAuth: Nessuna sessione attiva')
-        }
-      } catch (err) {
-        console.error('❌ useAuth: Errore generale:', err)
-        setError(err instanceof Error ? err.message : 'Errore sconosciuto')
-      } finally {
-        setLoading(false)
-        console.log('🔐 useAuth: Inizializzazione completata')
-      }
-    }
-
-    // Ascolta cambiamenti autenticazione
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (event === 'SIGNED_IN' && session?.user) {
-          setUser(session.user)
-          
-          // Ottieni profilo per nuovo utente
-          const { data: profiloData } = await supabase
-            .from('profili')
-            .select('*')
-            .eq('id', session.user.id)
-            .single()
-            
           setProfile(profiloData)
-        } else if (event === 'SIGNED_OUT') {
+        } else {
+          console.log('❌ useAuth: Nessun utente autenticato')
           setUser(null)
           setProfile(null)
         }
-        
-        setLoading(false)
+      } else {
+        console.log('❌ useAuth: Risposta non OK:', response.status)
+        setUser(null)
+        setProfile(null)
       }
-    )
+    } catch (err) {
+      console.error('❌ useAuth: Errore caricamento utente:', err)
+      setError(err instanceof Error ? err.message : 'Errore sconosciuto')
+      setUser(null)
+      setProfile(null)
+    } finally {
+      setLoading(false)
+    }
+  }
 
-    // Inizializza
-    getCurrentUser()
+  // Login
+  const login = async (credentials: LoginCredentials): Promise<LoginResult> => {
+    try {
+      setLoading(true)
+      setError(null)
 
-    // Cleanup subscription
-    return () => subscription.unsubscribe()
-  }, []) // ✅ CORREZIONE: Rimuovo dipendenza supabase
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(credentials),
+      })
 
-  return { user, profile, loading, error }
+      const data = await response.json()
+
+      if (data.success && data.user) {
+        setUser(data.user)
+
+        // Costruisci profilo
+        const profiloData: Profilo = {
+          id: data.user.id,
+          nome: data.user.nome,
+          cognome: data.user.cognome,
+          ruolo: data.user.ruolo,
+          email: data.user.email || null,
+          data_creazione: '',
+          data_aggiornamento: '',
+        }
+        setProfile(profiloData)
+
+        return {
+          success: true,
+          message: data.message,
+          user: data.user,
+        }
+      }
+
+      setError(data.message)
+      return {
+        success: false,
+        message: data.message,
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Errore durante il login'
+      setError(message)
+      return {
+        success: false,
+        message,
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Logout
+  const logout = async () => {
+    try {
+      setLoading(true)
+
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      })
+
+      setUser(null)
+      setProfile(null)
+      setError(null)
+    } catch (err) {
+      console.error('Errore logout:', err)
+      setError(err instanceof Error ? err.message : 'Errore durante il logout')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Refresh user
+  const refreshUser = async () => {
+    await loadCurrentUser()
+  }
+
+  // Carica utente all'avvio
+  useEffect(() => {
+    loadCurrentUser()
+  }, [])
+
+  return {
+    user,
+    profile,
+    loading,
+    error,
+    login,
+    logout,
+    refreshUser,
+  }
 }

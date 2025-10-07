@@ -80,6 +80,51 @@ const VIEWBOX = { WIDTH: 1000, HEIGHT: 800, CX: 500 }
 const H_STRETCH = 1.5
 const sx = (x: number) => VIEWBOX.CX + (x - VIEWBOX.CX) * H_STRETCH
 
+// =====================
+// Landmark Mano (MediaPipe Hands - 21 punti)
+// =====================
+const HAND_LANDMARKS = {
+  0: { name: 'Polso', x: 500, y: 720 },
+  1: { name: 'Pollice CMC (carpo-metacarpale)', x: 430, y: 640 },
+  2: { name: 'Pollice MCP (metacarpo-falangea)', x: 380, y: 560 },
+  3: { name: 'Pollice IP (interfalangea)', x: 340, y: 490 },
+  4: { name: 'Pollice Punta', x: 310, y: 440 },
+  5: { name: 'Indice MCP', x: 520, y: 520 },
+  6: { name: 'Indice PIP', x: 520, y: 430 },
+  7: { name: 'Indice DIP', x: 520, y: 360 },
+  8: { name: 'Indice Punta', x: 520, y: 300 },
+  9: { name: 'Medio MCP', x: 580, y: 520 },
+  10: { name: 'Medio PIP', x: 580, y: 410 },
+  11: { name: 'Medio DIP', x: 580, y: 330 },
+  12: { name: 'Medio Punta', x: 580, y: 260 },
+  13: { name: 'Anulare MCP', x: 635, y: 540 },
+  14: { name: 'Anulare PIP', x: 640, y: 430 },
+  15: { name: 'Anulare DIP', x: 645, y: 350 },
+  16: { name: 'Anulare Punta', x: 650, y: 290 },
+  17: { name: 'Mignolo MCP', x: 690, y: 580 },
+  18: { name: 'Mignolo PIP', x: 720, y: 490 },
+  19: { name: 'Mignolo DIP', x: 740, y: 430 },
+  20: { name: 'Mignolo Punta', x: 760, y: 380 }
+} as const
+
+const HAND_CONNECTIONS = [
+  [0, 1], [1, 2], [2, 3], [3, 4],
+  [0, 5], [5, 6], [6, 7], [7, 8],
+  [0, 9], [9, 10], [10, 11], [11, 12],
+  [0, 13], [13, 14], [14, 15], [15, 16],
+  [0, 17], [17, 18], [18, 19], [19, 20],
+  [5, 9], [9, 13], [13, 17]
+] as const
+
+const CATEGORIE_LANDMARKS_MANO = {
+  pollice: [1, 2, 3, 4],
+  indice: [5, 6, 7, 8],
+  medio: [9, 10, 11, 12],
+  anulare: [13, 14, 15, 16],
+  mignolo: [17, 18, 19, 20],
+  palmo: [0, 5, 9, 13, 17]
+}
+
 // Categorizzazione landmarks per parti del corpo
 export const CATEGORIE_LANDMARKS = {
   testa: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
@@ -99,11 +144,14 @@ export const COLORI_PARTI_CORPO = {
 interface LandmarkSelectorProps {
   onSave?: (esercizio: EsercizioPerDatabase) => void
   onCancel?: () => void
+  onChange?: (data: { parti_corpo_coinvolte: string[], configurazione_mediapipe: any }) => void
   esercizioEsistente?: EsercizioConfigurato
   categoriaEsercizio?: {
     id: number
     nome_categoria: string
   }
+  landmarkType?: 'pose' | 'hand'
+  hideForm?: boolean
 }
 
 export interface EsercizioConfigurato {
@@ -131,14 +179,15 @@ export interface EsercizioConfigurato {
 export interface EsercizioPerDatabase {
   nome_esercizio: string
   descrizione_esecuzione: string
-  note: string
-  difficolta: 'facile' | 'medio' | 'difficile'
-  durata_consigliata_minuti: number
-  parti_corpo_coinvolte: string[]
-  configurazione_mediapipe: {
+  note?: string
+  parti_corpo_coinvolte?: string[]
+  configurazione_mediapipe?: {
+    landmarks_target: number[]
+    soglia_confidenza: number
+    range_movimento_min: number
+    range_movimento_max: number
     tipo_esercizio: 'angle' | 'distance' | 'movement'
-    parametriCalcolo: {
-      landmarks_selezionati: number[]
+    parametriCalcolo?: {
       angolo_target?: number
       distanza_target?: number
       range_movimento?: number
@@ -146,7 +195,7 @@ export interface EsercizioPerDatabase {
   }
 }
 
-export function LandmarkSelector({ onSave, onCancel, esercizioEsistente, categoriaEsercizio }: LandmarkSelectorProps) {
+export function LandmarkSelector({ onSave, onCancel, onChange, esercizioEsistente, categoriaEsercizio, landmarkType = 'pose', hideForm = false }: LandmarkSelectorProps) {
   const [selectedPoints, setSelectedPoints] = useState<number[]>(
     esercizioEsistente?.landmarks_selezionati || []
   )
@@ -155,20 +204,10 @@ export function LandmarkSelector({ onSave, onCancel, esercizioEsistente, categor
     esercizioEsistente?.configurazione_mediapipe?.tipo_esercizio || 'movement'
   )
   const [zoom, setZoom] = useState(1)
-  const [esercizio, setEsercizio] = useState<Partial<EsercizioConfigurato>>({
+  const [esercizio, setEsercizio] = useState({
     nome: esercizioEsistente?.nome || '',
     descrizione: esercizioEsistente?.descrizione || '',
-    istruzioni: esercizioEsistente?.istruzioni || '',
-    difficolta: esercizioEsistente?.difficolta || 'medio',
-    durata_consigliata_minuti: esercizioEsistente?.durata_consigliata_minuti || 10,
-    parti_corpo_coinvolte: esercizioEsistente?.parti_corpo_coinvolte || [],
-    configurazione_mediapipe: esercizioEsistente?.configurazione_mediapipe || {
-      landmarks_target: [],
-      soglia_confidenza: 0.7,
-      range_movimento_min: 0,
-      range_movimento_max: 180,
-      tipo_esercizio: 'movement'
-    }
+    istruzioni: esercizioEsistente?.istruzioni || ''
   })
 
   // Pre-compila la categoria se fornita
@@ -182,20 +221,49 @@ export function LandmarkSelector({ onSave, onCancel, esercizioEsistente, categor
       }))
     }
   }, [categoriaEsercizio])
+ 
+  // Riduci zoom e altezza quando si lavora con la mano
+  React.useEffect(() => {
+    if (landmarkType === 'hand') {
+      setZoom(0.9)
+    } else {
+      setZoom(1)
+    }
+  }, [landmarkType])
+
+  // Dataset dinamico per corpo/mano
+  const LANDMARKS: Record<number, { name: string; x: number; y: number }> = (landmarkType === 'hand' ? HAND_LANDMARKS : POSE_LANDMARKS)
+  const CONNECTIONS: Array<[number, number]> = (landmarkType === 'hand' ? HAND_CONNECTIONS as unknown as Array<[number, number]> : POSE_CONNECTIONS as unknown as Array<[number, number]>)
+  const topY = Math.min(...Object.values(LANDMARKS).map(p => p.y))
+  const desiredTop = 120 // Desired top margin for the highest landmark
+  const vOffset = landmarkType === 'hand' ? Math.max(0, topY - desiredTop) : 0
+  const currentZoom = landmarkType === 'hand' ? 0.9 : 1; // Smaller zoom for hand
+  const currentViewBoxHeight = landmarkType === 'hand' ? 520 : 800; // Smaller height for hand
 
   // Funzione per calcolare l'angolo tra tre punti
-  const calculateAngle = (p1: any, p2: any, p3: any) => {
-    const a = Math.sqrt((p2.x - p3.x) ** 2 + (p2.y - p3.y) ** 2)
-    const b = Math.sqrt((p1.x - p3.x) ** 2 + (p1.y - p3.y) ** 2)
-    const c = Math.sqrt((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2)
+  const calculateAngle = (p1: { x: number; y: number }, p2: { x: number; y: number }, p3: { x: number; y: number }) => {
+    const a = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2))
+    const b = Math.sqrt(Math.pow(p3.x - p2.x, 2) + Math.pow(p3.y - p2.y, 2))
+    const c = Math.sqrt(Math.pow(p1.x - p3.x, 2) + Math.pow(p1.y - p3.y, 2))
     
-    const angle = Math.acos((a ** 2 + c ** 2 - b ** 2) / (2 * a * c))
-    return (angle * 180) / Math.PI
+    const angle = Math.acos((a * a + b * b - c * c) / (2 * a * b))
+    return Math.round((angle * 180) / Math.PI)
   }
 
   // Funzione per calcolare la distanza tra due punti
-  const calculateDistance = (p1: any, p2: any) => {
-    return Math.sqrt((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2)
+  const calculateDistance = (p1: { x: number; y: number }, p2: { x: number; y: number }) => {
+    return Math.round(Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2)))
+  }
+
+  // Funzione per calcolare il range di movimento
+  const calculateMovementRange = (points: Array<{ x: number; y: number }>) => {
+    if (points.length < 2) return 0
+    
+    let totalDistance = 0
+    for (let i = 1; i < points.length; i++) {
+      totalDistance += calculateDistance(points[i - 1], points[i])
+    }
+    return Math.round(totalDistance)
   }
 
   const handlePointClick = (pointId: number) => {
@@ -214,13 +282,75 @@ export function LandmarkSelector({ onSave, onCancel, esercizioEsistente, categor
     })
   }
 
+  // Funzione per determinare le parti del corpo coinvolte (DETTAGLIATA)
+  const getSelectedBodyParts = (): string[] => {
+    const partiCorpoCoinvolte: string[] = []
+
+    if (landmarkType === 'hand') {
+      // Per le mani, aggiungi i nomi specifici dei landmark
+      selectedPoints.forEach(pointId => {
+        const landmark = HAND_LANDMARKS[pointId as keyof typeof HAND_LANDMARKS]
+        if (landmark) {
+          partiCorpoCoinvolte.push(landmark.name)
+        }
+      })
+    } else {
+      // Per il corpo, aggiungi i nomi specifici dei landmark MediaPipe Pose
+      selectedPoints.forEach(pointId => {
+        const landmark = POSE_LANDMARKS[pointId as keyof typeof POSE_LANDMARKS]
+        if (landmark) {
+          partiCorpoCoinvolte.push(landmark.name)
+        }
+      })
+    }
+
+    return partiCorpoCoinvolte
+  }
+
+  // Funzione per calcolare parametri specifici per tipo esercizio
+  const getParametriCalcolo = () => {
+    let parametriCalcolo: any = {}
+
+    if (exerciseMode === 'angle' && selectedPoints.length === 3) {
+      const points = selectedPoints.map(id => (landmarkType === 'hand' ? HAND_LANDMARKS[id as keyof typeof HAND_LANDMARKS] : POSE_LANDMARKS[id as keyof typeof POSE_LANDMARKS]))
+      const angle = calculateAngle(points[0], points[1], points[2])
+      parametriCalcolo = { angolo_target: angle }
+    } else if (exerciseMode === 'distance' && selectedPoints.length === 2) {
+      const points = selectedPoints.map(id => (landmarkType === 'hand' ? HAND_LANDMARKS[id as keyof typeof HAND_LANDMARKS] : POSE_LANDMARKS[id as keyof typeof POSE_LANDMARKS]))
+      const distance = calculateDistance(points[0], points[1])
+      parametriCalcolo = { distanza_target: distance }
+    }
+
+    return parametriCalcolo
+  }
+
+  // Notifica cambiamenti in tempo reale quando onChange è fornito
+  React.useEffect(() => {
+    if (onChange && selectedPoints.length > 0) {
+      const partiCorpo = getSelectedBodyParts()
+      const configurazione = {
+        landmarks_target: selectedPoints,
+        soglia_confidenza: 0.7,
+        range_movimento_min: 0,
+        range_movimento_max: 180,
+        tipo_esercizio: exerciseMode,
+        parametriCalcolo: getParametriCalcolo()
+      }
+
+      onChange({
+        parti_corpo_coinvolte: partiCorpo,
+        configurazione_mediapipe: configurazione
+      })
+    }
+  }, [selectedPoints, exerciseMode, onChange])
+
   const getCalculationResult = () => {
     if (exerciseMode === 'angle' && selectedPoints.length === 3) {
-      const points = selectedPoints.map(id => POSE_LANDMARKS[id as keyof typeof POSE_LANDMARKS])
+      const points = selectedPoints.map(id => (landmarkType === 'hand' ? HAND_LANDMARKS[id as keyof typeof HAND_LANDMARKS] : POSE_LANDMARKS[id as keyof typeof POSE_LANDMARKS]))
       const angle = calculateAngle(points[0], points[1], points[2])
       return `Angolo: ${angle.toFixed(1)}°`
     } else if (exerciseMode === 'distance' && selectedPoints.length === 2) {
-      const points = selectedPoints.map(id => POSE_LANDMARKS[id as keyof typeof POSE_LANDMARKS])
+      const points = selectedPoints.map(id => (landmarkType === 'hand' ? HAND_LANDMARKS[id as keyof typeof HAND_LANDMARKS] : POSE_LANDMARKS[id as keyof typeof POSE_LANDMARKS]))
       const distance = calculateDistance(points[0], points[1])
       return `Distanza: ${distance.toFixed(1)} pixel`
     }
@@ -248,12 +378,23 @@ export function LandmarkSelector({ onSave, onCancel, esercizioEsistente, categor
   React.useEffect(() => {
     const partiCoinvolte = new Set<string>()
     
-    selectedPoints.forEach(landmarkId => {
-      if (CATEGORIE_LANDMARKS.testa.includes(landmarkId)) partiCoinvolte.add('testa')
-      if (CATEGORIE_LANDMARKS.tronco.includes(landmarkId)) partiCoinvolte.add('tronco')
-      if (CATEGORIE_LANDMARKS.braccia.includes(landmarkId)) partiCoinvolte.add('braccia')
-      if (CATEGORIE_LANDMARKS.gambe.includes(landmarkId)) partiCoinvolte.add('gambe')
-    })
+    if (landmarkType === 'hand') {
+      selectedPoints.forEach(landmarkId => {
+        if (CATEGORIE_LANDMARKS_MANO.pollice.includes(landmarkId)) partiCoinvolte.add('pollice')
+        if (CATEGORIE_LANDMARKS_MANO.indice.includes(landmarkId)) partiCoinvolte.add('indice')
+        if (CATEGORIE_LANDMARKS_MANO.medio.includes(landmarkId)) partiCoinvolte.add('medio')
+        if (CATEGORIE_LANDMARKS_MANO.anulare.includes(landmarkId)) partiCoinvolte.add('anulare')
+        if (CATEGORIE_LANDMARKS_MANO.mignolo.includes(landmarkId)) partiCoinvolte.add('mignolo')
+        if (CATEGORIE_LANDMARKS_MANO.palmo.includes(landmarkId)) partiCoinvolte.add('palmo')
+      })
+    } else {
+      selectedPoints.forEach(landmarkId => {
+        if (CATEGORIE_LANDMARKS.testa.includes(landmarkId)) partiCoinvolte.add('testa')
+        if (CATEGORIE_LANDMARKS.tronco.includes(landmarkId)) partiCoinvolte.add('tronco')
+        if (CATEGORIE_LANDMARKS.braccia.includes(landmarkId)) partiCoinvolte.add('braccia')
+        if (CATEGORIE_LANDMARKS.gambe.includes(landmarkId)) partiCoinvolte.add('gambe')
+      })
+    }
 
     setEsercizio(prev => ({
       ...prev,
@@ -269,43 +410,75 @@ export function LandmarkSelector({ onSave, onCancel, esercizioEsistente, categor
   // Salvataggio esercizio
   const handleSave = () => {
     if (!esercizio.nome?.trim()) {
-      toast.error('Nome esercizio è obbligatorio')
+      toast.error('Inserisci un nome per l\'esercizio')
       return
     }
 
-    if (selectedPoints.length === 0) {
-      toast.error('Seleziona almeno un landmark')
+    if (!esercizio.descrizione?.trim()) {
+      toast.error('Inserisci una descrizione per l\'esercizio')
       return
+    }
+
+    // Determina automaticamente le parti del corpo coinvolte basandosi sui landmarks selezionati
+    const partiCorpoCoinvolte: string[] = []
+    
+    if (landmarkType === 'hand') {
+      // Per i landmark della mano, determina le dita/palmo coinvolti
+      const ditaCoinvolte = new Set<string>()
+      
+      selectedPoints.forEach(pointId => {
+        if (pointId >= 1 && pointId <= 4) ditaCoinvolte.add('pollice')
+        else if (pointId >= 5 && pointId <= 8) ditaCoinvolte.add('indice')
+        else if (pointId >= 9 && pointId <= 12) ditaCoinvolte.add('medio')
+        else if (pointId >= 13 && pointId <= 16) ditaCoinvolte.add('anulare')
+        else if (pointId >= 17 && pointId <= 20) ditaCoinvolte.add('mignolo')
+        else if (pointId === 0) ditaCoinvolte.add('polso')
+      })
+      
+      if (ditaCoinvolte.size > 0) {
+        partiCorpoCoinvolte.push('mano')
+        ditaCoinvolte.forEach(dito => partiCorpoCoinvolte.push(dito))
+      }
+    } else {
+      // Per i landmark del corpo, determina le parti coinvolte
+      const partiCoinvolte = new Set<string>()
+      
+      selectedPoints.forEach(pointId => {
+        if (pointId >= 0 && pointId <= 10) partiCoinvolte.add('testa')
+        else if (pointId >= 11 && pointId <= 12 || pointId >= 23 && pointId <= 24) partiCoinvolte.add('tronco')
+        else if (pointId >= 13 && pointId <= 22) partiCoinvolte.add('braccia')
+        else if (pointId >= 25 && pointId <= 32) partiCoinvolte.add('gambe')
+      })
+      
+      partiCoinvolte.forEach(parte => partiCorpoCoinvolte.push(parte))
     }
 
     // Calcola parametri specifici per il tipo di esercizio
     let parametriCalcolo = {}
     if (exerciseMode === 'angle' && selectedPoints.length === 3) {
-      const points = selectedPoints.map(id => POSE_LANDMARKS[id as keyof typeof POSE_LANDMARKS])
+      const points = selectedPoints.map(id => (landmarkType === 'hand' ? HAND_LANDMARKS[id as keyof typeof HAND_LANDMARKS] : POSE_LANDMARKS[id as keyof typeof POSE_LANDMARKS]))
       const angle = calculateAngle(points[0], points[1], points[2])
       parametriCalcolo = { angolo_target: angle }
     } else if (exerciseMode === 'distance' && selectedPoints.length === 2) {
-      const points = selectedPoints.map(id => POSE_LANDMARKS[id as keyof typeof POSE_LANDMARKS])
+      const points = selectedPoints.map(id => (landmarkType === 'hand' ? HAND_LANDMARKS[id as keyof typeof HAND_LANDMARKS] : POSE_LANDMARKS[id as keyof typeof POSE_LANDMARKS]))
       const distance = calculateDistance(points[0], points[1])
       parametriCalcolo = { distanza_target: distance }
     }
 
-    const esercizioCompleto: EsercizioConfigurato = {
+    const esercizioCompleto = {
       nome: esercizio.nome,
       descrizione: esercizio.descrizione || '',
-      istruzioni: esercizio.istruzioni || '',
-      difficolta: esercizio.difficolta || 'medio',
-      durata_consigliata_minuti: esercizio.durata_consigliata_minuti || 10,
-      landmarks_selezionati: selectedPoints,
-      parti_corpo_coinvolte: esercizio.parti_corpo_coinvolte || [],
-      configurazione_mediapipe: {
-        landmarks_target: selectedPoints,
-        soglia_confidenza: 0.7,
-        range_movimento_min: 0,
-        range_movimento_max: 180,
-        tipo_esercizio: exerciseMode,
-        parametriCalcolo
-      }
+      istruzioni: esercizio.istruzioni || ''
+    }
+
+    // Costruisci la configurazione MediaPipe completa
+    const configurazione_mediapipe = {
+      landmarks_target: selectedPoints,
+      soglia_confidenza: 0.7,
+      range_movimento_min: 0,
+      range_movimento_max: 180,
+      tipo_esercizio: exerciseMode,
+      parametriCalcolo
     }
 
     // Mappa i campi per il database
@@ -313,20 +486,13 @@ export function LandmarkSelector({ onSave, onCancel, esercizioEsistente, categor
       nome_esercizio: esercizioCompleto.nome,
       descrizione_esecuzione: esercizioCompleto.istruzioni,
       note: esercizioCompleto.descrizione,
-      difficolta: esercizioCompleto.difficolta,
-      durata_consigliata_minuti: esercizioCompleto.durata_consigliata_minuti,
-      parti_corpo_coinvolte: esercizioCompleto.parti_corpo_coinvolte,
-      configurazione_mediapipe: {
-        tipo_esercizio: esercizioCompleto.configurazione_mediapipe.tipo_esercizio,
-        parametriCalcolo: {
-          landmarks_selezionati: esercizioCompleto.landmarks_selezionati,
-          ...parametriCalcolo
-        }
-      }
+      parti_corpo_coinvolte: partiCorpoCoinvolte,
+      configurazione_mediapipe
     }
 
+    console.log('Salvando esercizio con landmark:', esercizioPerDatabase)
     onSave?.(esercizioPerDatabase)
-    toast.success('Esercizio configurato con successo!')
+    toast.success('Configurazione landmark salvata!')
   }
 
   // Reset selezione
@@ -335,17 +501,7 @@ export function LandmarkSelector({ onSave, onCancel, esercizioEsistente, categor
     setEsercizio({
       nome: '',
       descrizione: '',
-      istruzioni: '',
-      difficolta: 'medio',
-      durata_consigliata_minuti: 10,
-      parti_corpo_coinvolte: [],
-      configurazione_mediapipe: {
-        landmarks_target: [],
-        soglia_confidenza: 0.7,
-        range_movimento_min: 0,
-        range_movimento_max: 180,
-        tipo_esercizio: 'movement'
-      }
+      istruzioni: ''
     })
   }
 
@@ -356,7 +512,7 @@ export function LandmarkSelector({ onSave, onCancel, esercizioEsistente, categor
           {/* Titolo + istruzioni inline */}
           <div className="flex items-center gap-3 min-w-0">
             <h1 className="text-base font-semibold text-gray-800 truncate">
-              Sistema di Landmark MediaPipe per Fisioterapia
+              {landmarkType === 'hand' ? 'Sistema Landmarks Mano (MediaPipe Hands)' : 'Sistema di Landmark MediaPipe per Fisioterapia'}
             </h1>
             <span className="hidden md:inline text-xs text-gray-500 truncate">
               {getExerciseInstructions()}
@@ -419,17 +575,18 @@ export function LandmarkSelector({ onSave, onCancel, esercizioEsistente, categor
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-2">
-        {/* Form Configurazione Esercizio */}
-        <div className="lg:col-span-1">
-          <Card className="w-full">
+      <div className="flex flex-col lg:flex-row gap-2 h-full">
+        {/* Form Configurazione Esercizio - Nascosto se hideForm=true */}
+        {!hideForm && (
+        <div className="lg:w-64 flex-shrink-0">
+          <Card className="w-full h-full">
             <CardHeader className="pb-1">
-              <CardTitle className="flex items-center gap-2 text-base">
+              <CardTitle className="flex items-center gap-2 text-sm">
                 <Info className="h-3 w-3" />
-                Configurazione
+                Config
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-1">
+            <CardContent className="space-y-1 text-xs">
               <div>
                 <Label htmlFor="nome" className="text-xs">Nome Esercizio *</Label>
                 <Input
@@ -465,45 +622,17 @@ export function LandmarkSelector({ onSave, onCancel, esercizioEsistente, categor
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-1">
-                <div>
-                  <Label htmlFor="difficolta" className="text-xs">Difficoltà</Label>
-                  <select
-                    id="difficolta"
-                    value={esercizio.difficolta}
-                    onChange={(e) => handleInputChange('difficolta', e.target.value)}
-                    className="w-full p-1 border rounded-md text-xs"
-                  >
-                    <option value="facile">Facile</option>
-                    <option value="medio">Medio</option>
-                    <option value="difficile">Difficile</option>
-                  </select>
-                </div>
 
-                <div>
-                  <Label htmlFor="durata" className="text-xs">Durata (min)</Label>
-                  <Input
-                    id="durata"
-                    type="number"
-                    value={esercizio.durata_consigliata_minuti}
-                    onChange={(e) => handleInputChange('durata_consigliata_minuti', parseInt(e.target.value))}
-                    min="1"
-                    max="60"
-                    className="text-xs py-1"
-                  />
-                </div>
-              </div>
 
               {/* Statistiche Selezione */}
               <div className="bg-gray-50 p-1 rounded-lg">
                 <h4 className="font-medium mb-1 text-xs">Statistiche</h4>
-                <div className="grid grid-cols-2 gap-1 text-xs">
+                <div className="grid grid-cols-1 gap-1 text-xs">
                   <div>Landmarks: <span className="font-semibold text-blue-600">{selectedPoints.length}</span></div>
-                  <div>Parti corpo: <span className="font-semibold text-green-600">{esercizio.parti_corpo_coinvolte?.length || 0}</span></div>
                 </div>
                 {selectedPoints.length > 0 && (
                   <div className="mt-0.5 text-xs text-gray-600">
-                    {selectedPoints.map(id => POSE_LANDMARKS[id as keyof typeof POSE_LANDMARKS]?.name).slice(0, 2).join(', ')}
+                    {selectedPoints.map(id => LANDMARKS[id]?.name).slice(0, 2).join(', ')}
                     {selectedPoints.length > 2 && ` +${selectedPoints.length - 2}`}
                   </div>
                 )}
@@ -527,17 +656,18 @@ export function LandmarkSelector({ onSave, onCancel, esercizioEsistente, categor
             </CardContent>
           </Card>
         </div>
+        )}
 
         {/* Area principale con i landmark */}
-        <div className="lg:col-span-4">
-          <Card>
-            <CardHeader className="py-2 border-b border-gray-100">
-              <CardTitle className="text-base">Selezione Landmarks MediaPipe</CardTitle>
+        <div className="flex-1 min-w-0">
+          <Card className="h-full">
+            <CardHeader className="py-1 border-b border-gray-100">
+              <CardTitle className="text-sm">Selezione Landmarks MediaPipe</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-2">
               <div
                 className="relative bg-gray-100 rounded-lg overflow-hidden mx-auto"
-                style={{ width: '100%', maxWidth: '100%', height: '100%', minHeight: '600px' }}
+                style={{ width: '100%', height: landmarkType === 'hand' ? '70vh' : '75vh' }}
               >
                 <svg
                   className="w-full h-full"
@@ -545,14 +675,15 @@ export function LandmarkSelector({ onSave, onCancel, esercizioEsistente, categor
                   preserveAspectRatio="xMidYMid meet"
                 >
                   <g transform={`scale(${zoom})`}>
+                    <g transform={`translate(0, -${vOffset})`}>
                   {/* Disegna le connessioni dello scheletro */}
-                  {POSE_CONNECTIONS.map(([start, end], index) => (
+                  {CONNECTIONS.map(([start, end], index) => (
                     <line
                       key={index}
-                      x1={sx(POSE_LANDMARKS[start as keyof typeof POSE_LANDMARKS].x)}
-                      y1={POSE_LANDMARKS[start as keyof typeof POSE_LANDMARKS].y}
-                      x2={sx(POSE_LANDMARKS[end as keyof typeof POSE_LANDMARKS].x)}
-                      y2={POSE_LANDMARKS[end as keyof typeof POSE_LANDMARKS].y}
+                      x1={sx(LANDMARKS[start].x)}
+                      y1={LANDMARKS[start].y}
+                      x2={sx(LANDMARKS[end].x)}
+                      y2={LANDMARKS[end].y}
                       stroke="#374151"
                       strokeWidth="2.75"
                       opacity="0.6"
@@ -564,10 +695,10 @@ export function LandmarkSelector({ onSave, onCancel, esercizioEsistente, categor
                     selectedPoints.slice(1).map((pointId, index) => (
                       <line
                         key={`selected-${index}`}
-                        x1={sx(POSE_LANDMARKS[selectedPoints[index] as keyof typeof POSE_LANDMARKS].x)}
-                        y1={POSE_LANDMARKS[selectedPoints[index] as keyof typeof POSE_LANDMARKS].y}
-                        x2={sx(POSE_LANDMARKS[pointId as keyof typeof POSE_LANDMARKS].x)}
-                        y2={POSE_LANDMARKS[pointId as keyof typeof POSE_LANDMARKS].y}
+                        x1={sx(LANDMARKS[selectedPoints[index]].x)}
+                        y1={LANDMARKS[selectedPoints[index]].y}
+                        x2={sx(LANDMARKS[pointId].x)}
+                        y2={LANDMARKS[pointId].y}
                         stroke="#ef4444"
                         strokeWidth="3"
                         strokeDasharray="5,5"
@@ -576,7 +707,7 @@ export function LandmarkSelector({ onSave, onCancel, esercizioEsistente, categor
                   )}
                   
                   {/* Disegna i punti landmark */}
-                  {Object.entries(POSE_LANDMARKS).map(([id, landmark]) => {
+                  {(Object.entries(LANDMARKS) as Array<[string, { name: string; x: number; y: number }]>).map(([id, landmark]) => {
                     const pointId = parseInt(id)
                     const isSelected = selectedPoints.includes(pointId)
                     const isHovered = hoveredPoint === pointId
@@ -643,6 +774,7 @@ export function LandmarkSelector({ onSave, onCancel, esercizioEsistente, categor
                       </g>
                     )
                   })}
+                    </g>
                   </g>
                 </svg>
               </div>
@@ -657,7 +789,7 @@ export function LandmarkSelector({ onSave, onCancel, esercizioEsistente, categor
                         key={pointId}
                         className="px-3 py-1 bg-blue-200 text-blue-800 rounded-full text-sm"
                       >
-                        {pointId}: {POSE_LANDMARKS[pointId as keyof typeof POSE_LANDMARKS]?.name}
+                        {pointId}: {LANDMARKS[pointId]?.name}
                       </span>
                     ))}
                   </div>
@@ -667,20 +799,33 @@ export function LandmarkSelector({ onSave, onCancel, esercizioEsistente, categor
               {/* Legenda */}
               <div className="mt-6 bg-gray-50 p-4 rounded-lg">
                 <h3 className="font-semibold text-gray-800 mb-2">Legenda Landmark:</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                  <div>
-                    <h4 className="font-medium text-gray-700 mb-1">Viso (0-10)</h4>
-                    <p className="text-gray-600">Naso, occhi, orecchie, bocca</p>
+                {landmarkType === 'hand' ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <h4 className="font-medium text-gray-700 mb-1">Dita</h4>
+                      <p className="text-gray-600">Pollice (1-4), Indice (5-8), Medio (9-12), Anulare (13-16), Mignolo (17-20)</p>
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-gray-700 mb-1">Palmo</h4>
+                      <p className="text-gray-600">Polso (0) e basi delle dita (5, 9, 13, 17)</p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="font-medium text-gray-700 mb-1">Braccia (11-22)</h4>
-                    <p className="text-gray-600">Spalle, gomiti, polsi, dita</p>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <h4 className="font-medium text-gray-700 mb-1">Viso (0-10)</h4>
+                      <p className="text-gray-600">Naso, occhi, orecchie, bocca</p>
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-gray-700 mb-1">Braccia (11-22)</h4>
+                      <p className="text-gray-600">Spalle, gomiti, polsi, dita</p>
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-gray-700 mb-1">Gambe (23-32)</h4>
+                      <p className="text-gray-600">Anche, ginocchia, caviglie, piedi</p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="font-medium text-gray-700 mb-1">Gambe (23-32)</h4>
-                    <p className="text-gray-600">Anche, ginocchia, caviglie, piedi</p>
-                  </div>
-                </div>
+                )}
               </div>
             </CardContent>
           </Card>

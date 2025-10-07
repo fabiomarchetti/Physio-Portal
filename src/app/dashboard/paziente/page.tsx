@@ -6,18 +6,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
-import { 
-  Activity, 
-  Calendar, 
-  Target, 
+import {
+  Activity,
+  Calendar,
+  Target,
   Play,
   BarChart3,
   Clock,
   CheckCircle,
   AlertCircle
 } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
-import { User } from '@supabase/supabase-js'
+import { useAuth } from '@/hooks/useAuth'
 
 interface PazienteData {
   id: string
@@ -53,92 +52,75 @@ interface ObiettivoData {
 }
 
 export default function DashboardPazientePage() {
-  const [mounted, setMounted] = useState(false)
-  const [user, setUser] = useState<User | null>(null)
   const [paziente, setPaziente] = useState<PazienteData | null>(null)
   const [sessioni, setSessioni] = useState<SessioneData[]>([])
   const [obiettivi, setObiettivi] = useState<ObiettivoData[]>([])
-  const [loading, setLoading] = useState(true)
+  const [dashboardLoading, setDashboardLoading] = useState(true)
   const [error, setError] = useState('')
 
   const router = useRouter()
-  const supabase = createClient()
+  const { user, loading: authLoading } = useAuth()
 
   useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  useEffect(() => {
-    if (!mounted) return
-
     const getPazienteData = async () => {
+      // Attendi che l'autenticazione sia completata
+      if (authLoading) return
+
+      // Se non c'è utente autenticato, reindirizza al login
+      if (!user) {
+        router.push('/login')
+        return
+      }
+
+      // Verifica che sia un paziente
+      if (user.ruolo !== 'paziente') {
+        router.push('/login')
+        return
+      }
+
       try {
-        setLoading(true)
-        
-        // Ottieni utente corrente
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) {
-          router.push('/login')
-          return
-        }
-        
-        setUser(user)
+        setDashboardLoading(true)
 
-        // Ottieni dati paziente
-        const { data: pazienteData, error: pazienteError } = await supabase
-          .from('pazienti')
-          .select(`
-            *,
-            profilo:profili(*)
-          `)
-          .eq('profilo_id', user.id)
-          .single()
+        // Ottieni l'ID del paziente dai datiSpecifici
+        const pazienteId = user.datiSpecifici?.paziente_id
 
-        if (pazienteError) {
-          console.error('Errore paziente:', pazienteError)
-          setError('Errore nel caricamento dati paziente')
+        if (!pazienteId) {
+          setError('ID paziente non trovato')
           return
         }
 
-        setPaziente(pazienteData)
+        // Chiamata API per ottenere dati completi del paziente
+        const response = await fetch(`/api/pazienti/${pazienteId}`, {
+          credentials: 'include'
+        })
 
-        // Ottieni sessioni recenti
-        const { data: sessioniData } = await supabase
-          .from('sessioni_riabilitazione')
-          .select('*')
-          .eq('paziente_id', pazienteData.id)
-          .order('data_inizio', { ascending: false })
-          .limit(5)
-
-        if (sessioniData) {
-          setSessioni(sessioniData)
+        if (!response.ok) {
+          throw new Error('Errore nel caricamento dei dati')
         }
 
-        // Ottieni obiettivi terapeutici
-        const { data: obiettiviData } = await supabase
-          .from('obiettivi_terapeutici')
-          .select('*')
-          .eq('paziente_id', pazienteData.id)
-          .order('data_scadenza', { ascending: true })
+        const data = await response.json()
 
-        if (obiettiviData) {
-          setObiettivi(obiettiviData)
+        if (!data.success) {
+          setError(data.message || 'Errore nel caricamento dati paziente')
+          return
         }
+
+        setPaziente(data.paziente)
+        setSessioni(data.paziente.sessioni || [])
+        setObiettivi(data.paziente.obiettivi || [])
 
       } catch (err) {
         console.error('Errore dashboard paziente:', err)
         setError('Errore nel caricamento della dashboard')
       } finally {
-        setLoading(false)
+        setDashboardLoading(false)
       }
     }
 
     getPazienteData()
-  }, [mounted, router, supabase])
+  }, [authLoading, user, router])
 
-  if (!mounted) return null
-
-  if (loading) {
+  if (authLoading || dashboardLoading) {
     return (
       <div className="min-h-screen bg-gray-50 py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

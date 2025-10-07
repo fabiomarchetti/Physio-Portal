@@ -21,9 +21,19 @@ import {
 } from 'lucide-react'
 import { useSessionRecording } from '@/hooks/useSessionRecording'
 import { toast } from 'sonner'
+import { BODY_LANDMARKS, BODY_CONNECTIONS } from '@/components/exercises/body/landmarks'
+import { HAND_LANDMARKS, HAND_CONNECTIONS } from '@/components/exercises/hands/landmarks'
+import { FACE_LANDMARKS, FACE_CONNECTIONS } from '@/components/exercises/face/landmarks'
 
 // Types per MediaPipe
 interface PoseLandmark {
+  x: number
+  y: number
+  z: number
+  visibility?: number
+}
+
+interface HandLandmark {
   x: number
   y: number
   z: number
@@ -34,6 +44,7 @@ interface PoseDetectionResult {
   landmarks: PoseLandmark[]
   worldLandmarks: PoseLandmark[]
   segmentationMasks?: ImageData[]
+  handLandmarks?: HandLandmark[][] // Array di array: una mano per array
 }
 
 interface PoseDetectionProps {
@@ -47,6 +58,9 @@ interface PoseDetectionProps {
   tipoEsercizio?: string
   obiettivi?: string
   onSessionComplete?: (sessionId: string) => void
+  // Props per landmark attivi
+  activeLandmarks?: {[key: number]: string}
+  activeConnections?: number[][]
 }
 
 // Performance settings - OTTIMIZZATO per fluidità video
@@ -58,7 +72,9 @@ const PERFORMANCE_SETTINGS = {
   CANVAS_SCALE: 0.8, // Ridotto per performance
 }
 
-// MediaPipe Pose landmark indices
+
+
+// MediaPipe Pose landmark indices (mantenuti per compatibilità)
 const POSE_LANDMARKS = {
   NOSE: 0,
   LEFT_SHOULDER: 11,
@@ -80,16 +96,21 @@ export function PoseDetection({
   onPoseDetected, 
   onError,
   isActive = false,
+  // Props per database
   enableRecording = false,
   pazienteId,
   tipoEsercizio = 'Esercizio generico',
   obiettivi,
-  onSessionComplete
+  onSessionComplete,
+  // Props per landmark attivi
+  activeLandmarks,
+  activeConnections
 }: PoseDetectionProps) {
   // Refs per rendering
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const animationFrameRef = useRef<number | undefined>(undefined)
   const poseDetectorRef = useRef<unknown>(null)
+  const handDetectorRef = useRef<unknown>(null)
   const lastFrameTimeRef = useRef<number>(0)
   const frameCountRef = useRef<number>(0)
   const drawingCountRef = useRef<number>(0)
@@ -162,13 +183,13 @@ export function PoseDetection({
       const poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
         baseOptions: {
           modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
-          delegate: 'GPU'
+          delegate: 'CPU' // Fallback a CPU se GPU non disponibile
         },
         runningMode: 'VIDEO',
         numPoses: 1,
-        minPoseDetectionConfidence: 0.3, // Ridotto per maggiore reattività
-        minPosePresenceConfidence: 0.3,  // Ridotto per maggiore reattività
-        minTrackingConfidence: 0.3,      // Ridotto per maggiore reattività
+        minPoseDetectionConfidence: 0.3,
+        minPosePresenceConfidence: 0.3,
+        minTrackingConfidence: 0.3,
         outputSegmentationMasks: false
       })
       
@@ -183,6 +204,32 @@ export function PoseDetection({
       onError?.(errorMessage)
     }
   }, [onError, getPerformanceConfig])
+
+  // Initialize MediaPipe Hands (solo se necessario)
+  const initializeHandsDetection = useCallback(async () => {
+    try {
+      const { HandLandmarker, FilesetResolver } = await import('@mediapipe/tasks-vision')
+      const vision = await FilesetResolver.forVisionTasks(
+        'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm'
+      )
+
+      const handLandmarker = await HandLandmarker.createFromOptions(vision, {
+        baseOptions: {
+          modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
+          delegate: 'CPU' // Fallback a CPU se GPU non disponibile
+        },
+        runningMode: 'VIDEO',
+        numHands: 2,
+        minHandDetectionConfidence: 0.3,
+        minHandPresenceConfidence: 0.3,
+        minTrackingConfidence: 0.3
+      })
+
+      handDetectorRef.current = handLandmarker
+    } catch (err) {
+      console.error('❌ Errore inizializzazione MediaPipe Hands:', err)
+    }
+  }, [])
 
   // Enhanced landmark drawing con punti colorati evidenziati
   const drawPoseLandmarksOptimized = useCallback((
@@ -420,7 +467,8 @@ export function PoseDetection({
         const resultsObj = results as {
           landmarks: PoseLandmark[][],
           worldLandmarks: PoseLandmark[][],
-          segmentationMasks?: ImageData[]
+          segmentationMasks?: ImageData[],
+          handLandmarks?: HandLandmark[][] // Aggiungo landmark mano
         }
         
         if (resultsObj.landmarks && resultsObj.landmarks.length > 0) {
@@ -456,16 +504,56 @@ export function PoseDetection({
             lastFrameTimeRef.current = now
           }
 
-          // Notify parent component
-          const detectionResult = {
+          // Prepara risultato per callback
+          const result: PoseDetectionResult = {
             landmarks,
             worldLandmarks,
-            segmentationMasks: resultsObj.segmentationMasks
+            segmentationMasks: resultsObj.segmentationMasks,
+            handLandmarks: undefined
           }
 
-          // Throttled callback per ridurre overhead
-          if (drawingCountRef.current % config.DRAWING_THROTTLE === 0) {
-            onPoseDetected?.(detectionResult)
+          // Se l'esercizio richiede landmark della mano, esegue anche la detection delle mani e combina
+          const needsHand = !!(activeLandmarks && Object.keys(activeLandmarks).some(key => parseInt(key) >= 0 && parseInt(key) <= 20))
+          
+          if (needsHand && !handDetectorRef.current) {
+            // Se serve Hands ma non è inizializzato, aspetta il prossimo frame
+            if (isDetecting) {
+              animationFrameRef.current = requestAnimationFrame(processFrame)
+            }
+            return
+          }
+          
+          if (needsHand && handDetectorRef.current) {
+            try {
+              const handDetector = handDetectorRef.current
+              
+              if (handDetector && typeof handDetector === 'object' && 'detectForVideo' in handDetector) {
+                const handDetectorWithMethod = handDetector as { detectForVideo: (video: HTMLVideoElement, timestamp: number) => unknown }
+                const handResultsUnknown = handDetectorWithMethod.detectForVideo(videoElement, now)
+                
+                if (handResultsUnknown && typeof handResultsUnknown === 'object' && 'landmarks' in handResultsUnknown) {
+                  const handResults = handResultsUnknown as { landmarks?: HandLandmark[][] }
+                  
+                  if (handResults.landmarks && handResults.landmarks.length > 0) {
+                    const firstHand = handResults.landmarks[0] || []
+                    console.log('✅ Landmark mano rilevati:', firstHand.length)
+                    
+                    result.handLandmarks = handResults.landmarks
+                    const combinedLandmarks = [...landmarks, ...firstHand]
+                    result.landmarks = combinedLandmarks
+                    
+                    console.log('✅ Landmark combinati: corpo(' + landmarks.length + ') + mano(' + firstHand.length + ') = ' + combinedLandmarks.length)
+                  }
+                }
+              }
+            } catch (e) {
+              console.warn('⚠️ Errore rilevamento mani:', e)
+            }
+          }
+
+          // Callback con risultato
+          if (onPoseDetected) {
+            onPoseDetected(result)
           }
 
           // Process for recording if enabled
@@ -491,7 +579,7 @@ export function PoseDetection({
         animationFrameRef.current = requestAnimationFrame(processFrame)
       }
     }
-  }, [videoElement, isDetecting, onPoseDetected, getPerformanceConfig, drawPoseLandmarksOptimized, shouldUseRecording, recording])
+  }, [videoElement, isDetecting, onPoseDetected, shouldUseRecording, recording, activeLandmarks])
 
 
   // Toggle detection
@@ -545,6 +633,20 @@ export function PoseDetection({
     }
   }, [videoElement, isInitialized, initializePoseDetection])
 
+  // Inizializza Hands quando servono landmark mano
+  useEffect(() => {
+    const needsHand = !!(activeLandmarks && Object.keys(activeLandmarks).some(key => parseInt(key) >= 0 && parseInt(key) <= 20))
+    
+    if (needsHand && !handDetectorRef.current) {
+      console.log('🚀 Inizializzo MediaPipe Hands...')
+      initializeHandsDetection().then(() => {
+        console.log('✅ MediaPipe Hands pronto!')
+      }).catch(err => {
+        console.error('❌ Errore Hands:', err)
+      })
+    }
+  }, [activeLandmarks, initializeHandsDetection])
+
   useEffect(() => {
     if (isActive && isInitialized && !isDetecting) {
       setIsDetecting(true)
@@ -560,9 +662,16 @@ export function PoseDetection({
   useEffect(() => {
     if (isDetecting && videoElement && poseDetectorRef.current && canvasRef.current) {
       lastFrameTimeRef.current = performance.now()
-      processFrame()
+      // Avvia il loop solo se non è già attivo
+      if (!animationFrameRef.current) {
+        processFrame()
+      }
+    } else if (!isDetecting && animationFrameRef.current) {
+      // Ferma il loop quando isDetecting diventa false
+      cancelAnimationFrame(animationFrameRef.current)
+      animationFrameRef.current = undefined
     }
-  }, [isDetecting, videoElement, processFrame])
+  }, [isDetecting, videoElement]) // Rimosso processFrame dalle dipendenze
 
   useEffect(() => {
     return () => {

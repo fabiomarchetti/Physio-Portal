@@ -14,6 +14,9 @@ interface PoseOverlayProps {
   videoElement: HTMLVideoElement | null
   confidence: number
   className?: string
+  activeLandmarks?: {[key: number]: string}
+  activeConnections?: number[][]
+  disableBodyFallback?: boolean
 }
 
 // MediaPipe Pose landmark indices
@@ -33,12 +36,10 @@ const POSE_LANDMARKS = {
   RIGHT_ANKLE: 28
 }
 
-export function PoseOverlay({ landmarks, videoElement, confidence, className = '' }: PoseOverlayProps) {
+export function PoseOverlay({ landmarks, videoElement, confidence, className = '', activeLandmarks, activeConnections, disableBodyFallback = false }: PoseOverlayProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const animationFrameRef = useRef<number | undefined>(undefined)
   const lastRenderTimeRef = useRef<number>(0)
-
-  // RIMOSSO SMOOTHING per allineamento immediato - usa landmarks diretti
 
   const drawPoseLandmarks = useCallback(() => {
     const now = performance.now()
@@ -52,9 +53,6 @@ export function PoseOverlay({ landmarks, videoElement, confidence, className = '
     if (!canvasRef.current || !videoElement || !landmarks || landmarks.length === 0) {
       return
     }
-
-    // Usa landmarks originali senza modifiche
-    const processedLandmarks = landmarks
 
     const canvas = canvasRef.current
     const ctx = canvas.getContext('2d')
@@ -91,51 +89,149 @@ export function PoseOverlay({ landmarks, videoElement, confidence, className = '
       rightAnkle: `rgba(200, 150, 255, ${alpha})`     // Lilla
     }
 
-    // Connessioni con colori specifici
-    const connections = [
-      { start: POSE_LANDMARKS.LEFT_SHOULDER, end: POSE_LANDMARKS.RIGHT_SHOULDER, color: bodyPartColors.torso },
-      { start: POSE_LANDMARKS.LEFT_SHOULDER, end: POSE_LANDMARKS.LEFT_ELBOW, color: bodyPartColors.leftShoulder },
-      { start: POSE_LANDMARKS.LEFT_ELBOW, end: POSE_LANDMARKS.LEFT_WRIST, color: bodyPartColors.leftElbow },
-      { start: POSE_LANDMARKS.RIGHT_SHOULDER, end: POSE_LANDMARKS.RIGHT_ELBOW, color: bodyPartColors.rightShoulder },
-      { start: POSE_LANDMARKS.RIGHT_ELBOW, end: POSE_LANDMARKS.RIGHT_WRIST, color: bodyPartColors.rightElbow },
-      { start: POSE_LANDMARKS.LEFT_SHOULDER, end: POSE_LANDMARKS.LEFT_HIP, color: bodyPartColors.torso },
-      { start: POSE_LANDMARKS.RIGHT_SHOULDER, end: POSE_LANDMARKS.RIGHT_HIP, color: bodyPartColors.torso },
-      { start: POSE_LANDMARKS.LEFT_HIP, end: POSE_LANDMARKS.RIGHT_HIP, color: bodyPartColors.torso },
-      { start: POSE_LANDMARKS.LEFT_HIP, end: POSE_LANDMARKS.LEFT_KNEE, color: bodyPartColors.leftHip },
-      { start: POSE_LANDMARKS.LEFT_KNEE, end: POSE_LANDMARKS.LEFT_ANKLE, color: bodyPartColors.leftKnee },
-      { start: POSE_LANDMARKS.RIGHT_HIP, end: POSE_LANDMARKS.RIGHT_KNEE, color: bodyPartColors.rightHip },
-      { start: POSE_LANDMARKS.RIGHT_KNEE, end: POSE_LANDMARKS.RIGHT_ANKLE, color: bodyPartColors.rightKnee }
-    ]
+    // Determina se abbiamo landmark della mano attivi
+    const hasHandActive = !!(activeLandmarks && Object.keys(activeLandmarks).some(k => parseInt(k) >= 0 && parseInt(k) <= 20))
+    const hasActive = !!(activeLandmarks && Object.keys(activeLandmarks).length > 0)
+
+    // Prepara connessioni da disegnare
+    let connectionsToDraw: { start: number, end: number, color: string }[] = []
+    
+    console.log('🔍 PoseOverlay DEBUG: Stato connessioni', {
+      activeConnections: activeConnections,
+      activeConnectionsLength: activeConnections?.length || 0,
+      hasHandActive,
+      hasActive,
+      disableBodyFallback
+    })
+    
+    if (activeConnections && activeConnections.length > 0) {
+      // Usa le connessioni specificate per l'esercizio
+      connectionsToDraw = activeConnections.map(conn => ({
+        start: conn[0],
+        end: conn[1],
+        color: bodyPartColors.torso
+      }))
+      console.log('🔍 PoseOverlay: Usando connessioni specifiche:', connectionsToDraw.length)
+    } else if (activeConnections && activeConnections.length === 0) {
+      // IMPORTANTE: Se activeConnections è esplicitamente vuoto, non disegnare nulla
+      // Questo rispetta il toggle showLines = false
+      connectionsToDraw = []
+      console.log('🔍 PoseOverlay: activeConnections vuoto, nessuna connessione (toggle OFF)')
+    } else if (hasHandActive) {
+      // Per esercizi mano senza connessioni specifiche, usa tutte le connessioni mano
+      connectionsToDraw = []
+      console.log('🔍 PoseOverlay: Esercizio mano, nessuna connessione')
+    } else if (!hasActive) {
+      // Fallback: connessioni corpo predefinite (solo se non è stato esplicitamente disabilitato)
+      connectionsToDraw = [
+        { start: POSE_LANDMARKS.LEFT_SHOULDER, end: POSE_LANDMARKS.RIGHT_SHOULDER, color: bodyPartColors.torso },
+        { start: POSE_LANDMARKS.LEFT_SHOULDER, end: POSE_LANDMARKS.LEFT_ELBOW, color: bodyPartColors.leftShoulder },
+        { start: POSE_LANDMARKS.LEFT_ELBOW, end: POSE_LANDMARKS.LEFT_WRIST, color: bodyPartColors.leftElbow },
+        { start: POSE_LANDMARKS.RIGHT_SHOULDER, end: POSE_LANDMARKS.RIGHT_ELBOW, color: bodyPartColors.rightShoulder },
+        { start: POSE_LANDMARKS.RIGHT_ELBOW, end: POSE_LANDMARKS.RIGHT_WRIST, color: bodyPartColors.rightElbow },
+        { start: POSE_LANDMARKS.LEFT_SHOULDER, end: POSE_LANDMARKS.LEFT_HIP, color: bodyPartColors.torso },
+        { start: POSE_LANDMARKS.RIGHT_SHOULDER, end: POSE_LANDMARKS.RIGHT_HIP, color: bodyPartColors.torso },
+        { start: POSE_LANDMARKS.LEFT_HIP, end: POSE_LANDMARKS.RIGHT_HIP, color: bodyPartColors.torso },
+        { start: POSE_LANDMARKS.LEFT_HIP, end: POSE_LANDMARKS.LEFT_KNEE, color: bodyPartColors.leftHip },
+        { start: POSE_LANDMARKS.LEFT_KNEE, end: POSE_LANDMARKS.LEFT_ANKLE, color: bodyPartColors.leftKnee },
+        { start: POSE_LANDMARKS.RIGHT_HIP, end: POSE_LANDMARKS.RIGHT_KNEE, color: bodyPartColors.rightHip },
+        { start: POSE_LANDMARKS.RIGHT_KNEE, end: POSE_LANDMARKS.RIGHT_ANKLE, color: bodyPartColors.rightKnee }
+      ]
+      console.log('🔍 PoseOverlay: Usando connessioni fallback corpo:', connectionsToDraw.length)
+    }
+    
+    console.log('🔍 PoseOverlay: Connessioni finali da disegnare:', connectionsToDraw.length)
 
     // Disegna connessioni
     ctx.lineWidth = lineWidth
     ctx.lineCap = 'round'
-    connections.forEach(({ start, end, color }) => {
-      const startLandmark = landmarks[start]
-      const endLandmark = landmarks[end]
+    
+    console.log('🔍 PoseOverlay: Iniziando a disegnare', connectionsToDraw.length, 'connessioni')
+    
+    try {
+      connectionsToDraw.forEach(({ start, end, color }, index) => {
+        console.log(`🔍 PoseOverlay: Disegnando connessione ${index + 1}/${connectionsToDraw.length}: ${start} → ${end}`)
+      // CORREZIONE: Distingui tra landmark corpo e mano
+      // L'array combinato ha: [0-32] = corpo, [33-53] = mano
+      let startIndex = start
+      let endIndex = end
       
-      if (startLandmark && endLandmark &&
-          (startLandmark.visibility || 0) > 0.5 &&
-          (endLandmark.visibility || 0) > 0.5) {
+      // Determina se questo è un esercizio per la mano o per il corpo
+      // IMPORTANTE: Se non ci sono activeLandmarks, è sempre un esercizio corpo
+      const activeKeys = Object.keys(activeLandmarks || {}).map(k => parseInt(k))
+      const isHandExercise = activeKeys.length > 0 && activeKeys.every(key => key >= 0 && key <= 20)
+      const isBodyExercise = activeKeys.length === 0 || activeKeys.every(key => key >= 0 && key <= 32)
+      
+      console.log(`🔍 PoseOverlay: Mappatura connessione ${start} → ${end}`, {
+        activeKeys,
+        isHandExercise,
+        isBodyExercise,
+        landmarksLength: landmarks.length
+      })
+      
+      if (isHandExercise && start >= 0 && start <= 20) {
+        // Esercizio mano: mappa 0-20 → 33-53 (posizione mano nell'array combinato)
+        startIndex = 33 + start
+        console.log(`🔍 PoseOverlay: Mappa mano start ${start} → ${startIndex}`)
+      } else if (isBodyExercise && start >= 0 && start <= 32) {
+        // Esercizio corpo: usa l'indice diretto
+        startIndex = start
+        console.log(`🔍 PoseOverlay: Mappa corpo start ${start} → ${startIndex}`)
+      }
+      
+      if (isHandExercise && end >= 0 && end <= 20) {
+        // Esercizio mano: mappa 0-20 → 33-53 (posizione mano nell'array combinato)
+        endIndex = 33 + end
+        console.log(`🔍 PoseOverlay: Mappa mano end ${end} → ${endIndex}`)
+      } else if (isBodyExercise && end >= 0 && end <= 32) {
+        // Esercizio corpo: usa l'indice diretto
+        endIndex = end
+        console.log(`🔍 PoseOverlay: Mappa corpo end ${end} → ${endIndex}`)
+      }
+      
+      const startLandmark = landmarks[startIndex]
+      const endLandmark = landmarks[endIndex]
+      
+      if (startLandmark && endLandmark) {
+        const startVis = (startLandmark.visibility ?? 1)
+        const endVis = (endLandmark.visibility ?? 1)
         
-        const gradient = ctx.createLinearGradient(
-          startLandmark.x * canvas.width, startLandmark.y * canvas.height,
-          endLandmark.x * canvas.width, endLandmark.y * canvas.height
-        )
-        
-        gradient.addColorStop(0, color)
-        gradient.addColorStop(1, color.replace(alpha.toString(), (alpha * 0.7).toString()))
-        
-        ctx.strokeStyle = gradient
-        ctx.shadowColor = color
-        ctx.shadowBlur = 3
-        ctx.beginPath()
-        ctx.moveTo(startLandmark.x * canvas.width, startLandmark.y * canvas.height)
-        ctx.lineTo(endLandmark.x * canvas.width, endLandmark.y * canvas.height)
-        ctx.stroke()
-        ctx.shadowBlur = 0
+        if (startVis > 0.2 && endVis > 0.2) {
+          
+          // Gradiente per la linea
+          const gradient = ctx.createLinearGradient(
+            startLandmark.x * canvas.width, startLandmark.y * canvas.height,
+            endLandmark.x * canvas.width, endLandmark.y * canvas.height
+          )
+          
+          gradient.addColorStop(0, color)
+          gradient.addColorStop(1, color.replace(alpha.toString(), (alpha * 0.7).toString()))
+          
+          ctx.strokeStyle = gradient
+          ctx.shadowColor = color
+          ctx.shadowBlur = 3
+          ctx.beginPath()
+          ctx.moveTo(startLandmark.x * canvas.width, startLandmark.y * canvas.height)
+          ctx.lineTo(endLandmark.x * canvas.width, endLandmark.y * canvas.height)
+          ctx.stroke()
+          ctx.shadowBlur = 0
+        }
+      } else {
+        console.log(`⚠️ PoseOverlay: Landmark mancanti per connessione ${start}(${startIndex}) → ${end}(${endIndex})`, {
+          startLandmark: !!startLandmark,
+          endLandmark: !!endLandmark,
+          startIndex,
+          endIndex,
+          landmarksLength: landmarks.length
+        })
       }
     })
+    
+    console.log('🔍 PoseOverlay: Connessioni disegnate con successo')
+    
+    } catch (error) {
+      console.error('❌ PoseOverlay: Errore durante il disegno delle connessioni:', error)
+    }
 
     // Mappa colori per punti
     const landmarkColorMap = {
@@ -155,54 +251,136 @@ export function PoseOverlay({ landmarks, videoElement, confidence, className = '
     }
 
     // Disegna punti salienti
-    Object.entries(landmarkColorMap).forEach(([indexStr, color]) => {
-      const index = parseInt(indexStr)
-      const landmark = landmarks[index]
+    if (hasActive) {
+      console.log('🔍 PoseOverlay: Rendering landmark attivi per esercizio', {
+        activeLandmarksCount: Object.keys(activeLandmarks!).length,
+        activeLandmarksKeys: Object.keys(activeLandmarks!),
+        landmarksLength: landmarks.length
+      })
       
-      if (landmark && (landmark.visibility || 0) > 0.5) {
-        const x = landmark.x * canvas.width
-        const y = landmark.y * canvas.height
+      // Disegna solo i landmark attivi per l'esercizio
+      Object.entries(activeLandmarks!).forEach(([indexStr, name]) => {
+        const index = parseInt(indexStr)
         
-        // Effetto glow
-        ctx.shadowColor = color
-        ctx.shadowBlur = glowRadius
+        // CORREZIONE: Distingui tra landmark corpo e mano
+        // L'array combinato ha: [0-32] = corpo, [33-53] = mano
+        let landmarkIndex = index
         
-        // Cerchio esterno (alone)
-        ctx.fillStyle = color.replace(alpha.toString(), (alpha * 0.3).toString())
-        ctx.beginPath()
-        ctx.arc(x, y, pointRadius + 3, 0, 2 * Math.PI)
-        ctx.fill()
+        // Determina se questo è un esercizio per la mano o per il corpo
+        // Se gli indici attivi sono 0-20, è un esercizio mano
+        // Se gli indici attivi sono 0-32, è un esercizio corpo
+        const activeKeys = Object.keys(activeLandmarks!).map(k => parseInt(k))
+        const isHandExercise = activeKeys.every(key => key >= 0 && key <= 20)
+        const isBodyExercise = activeKeys.every(key => key >= 0 && key <= 32) && !isHandExercise
         
-        // Cerchio principale
-        ctx.fillStyle = color
-        ctx.beginPath()
-        ctx.arc(x, y, pointRadius, 0, 2 * Math.PI)
-        ctx.fill()
-        
-        // Cerchio interno (highlight)
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)'
-        ctx.beginPath()
-        ctx.arc(x, y, pointRadius * 0.4, 0, 2 * Math.PI)
-        ctx.fill()
-        
-        ctx.shadowBlur = 0
-        
-        // Barra confidenza per articolazioni principali
-        if ([POSE_LANDMARKS.LEFT_SHOULDER, POSE_LANDMARKS.RIGHT_SHOULDER, 
-             POSE_LANDMARKS.LEFT_ELBOW, POSE_LANDMARKS.RIGHT_ELBOW,
-             POSE_LANDMARKS.LEFT_WRIST, POSE_LANDMARKS.RIGHT_WRIST,
-             POSE_LANDMARKS.LEFT_HIP, POSE_LANDMARKS.RIGHT_HIP,
-             POSE_LANDMARKS.LEFT_KNEE, POSE_LANDMARKS.RIGHT_KNEE,
-             POSE_LANDMARKS.LEFT_ANKLE, POSE_LANDMARKS.RIGHT_ANKLE].includes(index)) {
-          
-          const confidenceBar = (landmark.visibility || 0) * 20
-          ctx.fillStyle = `rgba(255, 255, 255, 0.8)`
-          ctx.fillRect(x - 10, y - pointRadius - 8, confidenceBar, 2)
+        if (isHandExercise && index >= 0 && index <= 20) {
+          // Esercizio mano: mappa 0-20 → 33-53 (posizione mano nell'array combinato)
+          landmarkIndex = 33 + index
+          console.log(`🔍 PoseOverlay: Landmark mano ${index} → ${landmarkIndex} (${name})`)
+        } else if (isBodyExercise && index >= 0 && index <= 32) {
+          // Esercizio corpo: usa l'indice diretto
+          landmarkIndex = index
+          console.log(`🔍 PoseOverlay: Landmark corpo ${index} → ${landmarkIndex} (${name})`)
+        } else {
+          // Fallback: usa l'indice diretto
+          landmarkIndex = index
+          console.log(`🔍 PoseOverlay: Landmark fallback ${index} → ${landmarkIndex} (${name})`)
         }
-      }
-    })
+        
+        const landmark = landmarks[landmarkIndex]
+        
+        if (landmark) {
+          const vis = (landmark.visibility ?? 1)
+          if (vis > 0.2) {
+            
+            const x = landmark.x * canvas.width
+            const y = landmark.y * canvas.height
+            
+            // Colore predefinito per landmark attivi
+            const color = bodyPartColors.torso
+            
+            // Effetto glow
+            ctx.shadowColor = color
+            ctx.shadowBlur = glowRadius
+            
+            // Cerchio esterno (alone)
+            ctx.fillStyle = color.replace(alpha.toString(), (alpha * 0.3).toString())
+            ctx.beginPath()
+            ctx.arc(x, y, pointRadius + 3, 0, 2 * Math.PI)
+            ctx.fill()
+            
+            // Cerchio principale
+            ctx.fillStyle = color
+            ctx.beginPath()
+            ctx.arc(x, y, pointRadius, 0, 2 * Math.PI)
+            ctx.fill()
+            
+            // Cerchio interno (highlight)
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)'
+            ctx.beginPath()
+            ctx.arc(x, y, pointRadius * 0.4, 0, 2 * Math.PI)
+            ctx.fill()
+            
+            ctx.shadowBlur = 0
+            
+            // Barra confidenza
+            const confidenceBar = (landmark.visibility ?? 1) * 20
+            ctx.fillStyle = `rgba(255, 255, 255, 0.8)`
+            ctx.fillRect(x - 10, y - pointRadius - 8, confidenceBar, 2)
+          }
+        }
+      })
+    } else if (!disableBodyFallback) {
+      // Fallback: disegna i landmark del corpo solo se non ci sono activeLandmarks
+      Object.entries(landmarkColorMap).forEach(([indexStr, color]) => {
+        const index = parseInt(indexStr)
+        const landmark = landmarks[index]
+        
+        if (landmark && (landmark.visibility || 0) > 0.5) {
+          const x = landmark.x * canvas.width
+          const y = landmark.y * canvas.height
+          
+          // Effetto glow
+          ctx.shadowColor = color
+          ctx.shadowBlur = glowRadius
+          
+          // Cerchio esterno (alone)
+          ctx.fillStyle = color.replace(alpha.toString(), (alpha * 0.3).toString())
+          ctx.beginPath()
+          ctx.arc(x, y, pointRadius + 3, 0, 2 * Math.PI)
+          ctx.fill()
+          
+          // Cerchio principale
+          ctx.fillStyle = color
+          ctx.beginPath()
+          ctx.arc(x, y, pointRadius, 0, 2 * Math.PI)
+          ctx.fill()
+          
+          // Cerchio interno (highlight)
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.8)'
+          ctx.beginPath()
+          ctx.arc(x, y, pointRadius * 0.4, 0, 2 * Math.PI)
+          ctx.fill()
+          
+          ctx.shadowBlur = 0
+          
+          // Barra confidenza per articolazioni principali
+          if ([POSE_LANDMARKS.LEFT_SHOULDER, POSE_LANDMARKS.RIGHT_SHOULDER, 
+               POSE_LANDMARKS.LEFT_ELBOW, POSE_LANDMARKS.RIGHT_ELBOW,
+               POSE_LANDMARKS.LEFT_WRIST, POSE_LANDMARKS.RIGHT_WRIST,
+               POSE_LANDMARKS.LEFT_HIP, POSE_LANDMARKS.RIGHT_HIP,
+               POSE_LANDMARKS.LEFT_KNEE, POSE_LANDMARKS.RIGHT_KNEE,
+               POSE_LANDMARKS.LEFT_ANKLE, POSE_LANDMARKS.RIGHT_ANKLE].includes(index)) {
+            
+            const confidenceBar = (landmark.visibility || 0) * 20
+            ctx.fillStyle = `rgba(255, 255, 255, 0.8)`
+            ctx.fillRect(x - 10, y - pointRadius - 8, confidenceBar, 2)
+          }
+        }
+      })
+    }
     
-  }, [landmarks, videoElement, confidence])
+  }, [landmarks, videoElement, confidence, activeLandmarks, activeConnections, disableBodyFallback])
 
   // Ridisegna quando cambiano i landmarks
   useEffect(() => {
