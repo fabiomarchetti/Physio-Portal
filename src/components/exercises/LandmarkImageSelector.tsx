@@ -3,9 +3,9 @@
 import { useState, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { BODY_LANDMARKS, BODY_CONNECTIONS } from '../body/landmarks'
-import { HAND_LANDMARKS, HAND_CONNECTIONS } from '../hands/landmarks'
-import { FACE_LANDMARKS, FACE_CONNECTIONS } from '../face/landmarks'
+import { BODY_LANDMARKS, BODY_CONNECTIONS } from './body/landmarks'
+import { HAND_LANDMARKS, HAND_CONNECTIONS } from './hands/landmarks'
+import { FACE_LANDMARKS, FACE_CONNECTIONS } from './face/landmarks'
 
 interface LandmarkImageSelectorProps {
   type: 'body' | 'hands' | 'face'
