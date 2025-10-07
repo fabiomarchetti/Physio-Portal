@@ -1023,17 +1023,6 @@ export default function DashboardPage() {
               variant="outline"
               className="w-full justify-start gap-2 h-10 text-sm"
               onClick={() => {
-                router.push('/test-auth')
-                setSidebarOpen(false)
-              }}
-            >
-              🧪 Debug Sistema
-            </Button>
-
-            <Button
-              variant="outline"
-              className="w-full justify-start gap-2 h-10 text-sm"
-              onClick={() => {
                 router.push('/sessione/test-123?mode=patient')
                 setSidebarOpen(false)
               }}
@@ -1050,28 +1039,6 @@ export default function DashboardPage() {
               }}
             >
               🧑‍⚕️ Sessione Demo (Fisioterapista)
-            </Button>
-
-            <Button
-              variant="outline"
-              className="w-full justify-start gap-2 h-10 text-sm"
-              onClick={() => {
-                window.open('http://localhost:3001/sessione/test-123?mode=patient', '_blank')
-                setSidebarOpen(false)
-              }}
-            >
-              🧪 Test Video (Patient 3001)
-            </Button>
-
-            <Button
-              variant="outline"
-              className="w-full justify-start gap-2 h-10 text-sm"
-              onClick={() => {
-                router.push('/debug-database')
-                setSidebarOpen(false)
-              }}
-            >
-              🔍 Debug Database
             </Button>
 
             <Button

@@ -7,43 +7,16 @@ if (!process.env.DATABASE_URL) {
 // Client SQL per query dirette
 export const sql = neon(process.env.DATABASE_URL)
 
-// Helper per eseguire query con gestione errori
+// Helper per eseguire query con gestione errori (legacy - non più necessario)
+// Nota: Preferire l'uso diretto di sql`...` con template tags
 export async function executeQuery<T = any>(
   query: string,
   params: any[] = []
 ): Promise<T> {
+  console.warn('executeQuery è deprecato. Usare sql`...` template tags invece.')
   try {
-    const result = await sql(query, params)
-    return result as T
-  } catch (error) {
-    console.error('Errore query database:', error)
-    throw error
-  }
-}
-
-// Helper per query con parametri named
-export async function query<T = any>(
-  queryTemplate: string,
-  params?: Record<string, any>
-): Promise<T> {
-  try {
-    // Converti parametri named in array ordinato
-    const paramValues: any[] = []
-    let paramIndex = 1
-
-    const processedQuery = queryTemplate.replace(
-      /\$\{(\w+)\}/g,
-      (match, paramName) => {
-        if (params && paramName in params) {
-          paramValues.push(params[paramName])
-          return `$${paramIndex++}`
-        }
-        return match
-      }
-    )
-
-    const result = await sql(processedQuery, paramValues)
-    return result as T
+    // Per query dinamiche con nomi di tabelle validati, usare sql.unsafe()
+    throw new Error('executeQuery non supportato. Usare sql`...` template tags o sql.unsafe() per identificatori dinamici.')
   } catch (error) {
     console.error('Errore query database:', error)
     throw error

@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Shield, Users, Database, UserPlus, AlertCircle, Eye, Mail, Key, Trash2, Copy, Check, Printer } from 'lucide-react'
+import { Shield, Users, Database, UserPlus, AlertCircle, Eye, Mail, Key, Trash2, Copy, Check, Printer, Menu, X } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface Fisioterapista {
@@ -48,6 +48,7 @@ export default function DashboardSviluppatorePage() {
     email: string
     password: string
   } | null>(null)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const [formFisio, setFormFisio] = useState({
     nome: '',
@@ -385,20 +386,113 @@ export default function DashboardSviluppatorePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold">Dashboard Sviluppatore</h1>
-            <p className="text-gray-600 mt-1">
-              Benvenuto, {user.nome} {user.cognome}
-            </p>
+    <div className="min-h-screen bg-gray-50">
+      {/* Overlay per chiudere sidebar */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar Menu */}
+      <div
+        className={`fixed top-0 left-0 h-full w-80 bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-in-out ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        <div className="flex flex-col h-full">
+          {/* Header Sidebar */}
+          <div className="flex justify-between items-center p-6 border-b bg-blue-600">
+            <h2 className="text-xl font-bold text-white">Menu Sviluppatore</h2>
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="text-white hover:bg-blue-700 p-2 rounded-lg transition-colors"
+            >
+              <X className="h-6 w-6" />
+            </button>
           </div>
-          <Button onClick={handleLogout} variant="outline">
-            Logout
-          </Button>
+
+          {/* Menu Items */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-2">
+            <Button
+              variant="outline"
+              className="w-full justify-start gap-2 h-12"
+              onClick={() => {
+                setShowRegistraFisio(true)
+                setSidebarOpen(false)
+              }}
+            >
+              <UserPlus className="h-5 w-5" />
+              Registra Fisioterapista
+            </Button>
+
+            <Button
+              variant="outline"
+              className="w-full justify-start gap-2 h-12"
+              onClick={() => {
+                router.push('/dashboard')
+                setSidebarOpen(false)
+              }}
+            >
+              <Shield className="h-5 w-5" />
+              Dashboard Generale
+            </Button>
+
+            <div className="border-t my-4" />
+
+            <p className="text-xs text-gray-500 font-semibold px-2 mb-2">AMMINISTRAZIONE</p>
+
+            <Button
+              variant="outline"
+              className="w-full justify-start gap-2 h-10 text-sm"
+              onClick={() => {
+                caricaFisioterapisti()
+                setSidebarOpen(false)
+              }}
+            >
+              <Users className="h-4 w-4" />
+              Aggiorna Lista Fisioterapisti
+            </Button>
+
+            <Button
+              variant="outline"
+              className="w-full justify-start gap-2 h-10 text-sm"
+              onClick={() => {
+                router.push('/debug-database')
+                setSidebarOpen(false)
+              }}
+            >
+              <Database className="h-4 w-4" />
+              Debug Database
+            </Button>
+          </div>
         </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="p-8">
+        <div className="max-w-7xl mx-auto">
+          {/* Header */}
+          <div className="flex justify-between items-center mb-8">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
+              >
+                <Menu className="h-6 w-6" />
+              </button>
+              <div>
+                <h1 className="text-3xl font-bold">Dashboard Sviluppatore</h1>
+                <p className="text-gray-600 mt-1">
+                  Benvenuto, {user.nome} {user.cognome}
+                </p>
+              </div>
+            </div>
+            <Button onClick={handleLogout} variant="outline">
+              Logout
+            </Button>
+          </div>
 
         {error && (
           <Alert variant="destructive" className="mb-6">
@@ -860,6 +954,7 @@ export default function DashboardSviluppatorePage() {
             </DialogContent>
           </Dialog>
         )}
+        </div>
       </div>
     </div>
   )

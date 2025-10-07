@@ -159,6 +159,45 @@ export default function LandmarkReferencePage() {
           </Button>
         </div>
 
+        {/* Immagini di riferimento */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>📐 Diagrammi di Riferimento MediaPipe</CardTitle>
+            <CardDescription>
+              Visualizzazione dei punti di rilevamento su corpo e mano
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Immagine Corpo */}
+              <div className="flex flex-col items-center">
+                <h3 className="text-lg font-semibold mb-3 text-gray-700">Corpo (33 punti)</h3>
+                <div className="bg-white p-4 rounded-lg border-2 border-gray-200 w-full flex justify-center">
+                  <img
+                    src="/img/corpo.png"
+                    alt="Riferimento landmark corpo MediaPipe"
+                    className="max-w-full h-auto"
+                    style={{ maxHeight: '500px' }}
+                  />
+                </div>
+              </div>
+
+              {/* Immagine Mano */}
+              <div className="flex flex-col items-center">
+                <h3 className="text-lg font-semibold mb-3 text-gray-700">Mano (21 punti)</h3>
+                <div className="bg-white p-4 rounded-lg border-2 border-gray-200 w-full flex justify-center">
+                  <img
+                    src="/img/mano.png"
+                    alt="Riferimento landmark mano MediaPipe"
+                    className="max-w-full h-auto"
+                    style={{ maxHeight: '500px' }}
+                  />
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Search bar */}
         <Card className="mb-6">
           <CardContent className="pt-6">
