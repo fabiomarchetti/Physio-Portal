@@ -33,14 +33,18 @@ export default function LoginPage() {
       if (result.success && result.user) {
         toast.success('Login effettuato con successo!')
 
-        // Reindirizza in base al ruolo
+        // Reindirizza in base al ruolo con hard refresh per garantire cookie
+        let dashboardUrl = '/dashboard'
         if (result.user.ruolo === 'sviluppatore') {
-          router.push('/dashboard/sviluppatore')
+          dashboardUrl = '/dashboard/sviluppatore'
         } else if (result.user.ruolo === 'fisioterapista') {
-          router.push('/dashboard/fisioterapista')
+          dashboardUrl = '/dashboard/fisioterapista'
         } else if (result.user.ruolo === 'paziente') {
-          router.push('/dashboard/paziente')
+          dashboardUrl = '/dashboard/paziente'
         }
+
+        // Hard refresh per assicurare che il cookie sia disponibile
+        window.location.href = dashboardUrl
       } else {
         toast.error(result.message || 'Credenziali non valide')
       }
